@@ -30,10 +30,10 @@ pass show zfs_disk_passphrase | dropbear-auto-unlock root@pve-01
 
 ## TODO
 
-Implement :)
-
-### Example that works in bash
-
-```bash
-pass show disk-encryption-passphrase | timeout 5 sshpass -d 0 ssh -tt root@server-dropbear >/dev/null
-```
+- [ ] Instead of checking first line of ssh server, spawn `ssh` and get a proper
+      line stream.
+- [ ] Check if the prompt is an unlock prompt. If so, unlock.
+- [ ] Check if we can run `zfsunlock`. If so, unlock.
+- [ ] If we're in the server booted, `sleep infinity`, then wait for broken
+      connection indicating next boot.
+- [ ] Add timeout arguments/options to `ssh` command.
