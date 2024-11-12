@@ -20,5 +20,8 @@
     "foreach-file-no-json-yaml": "deno task list-files | grep -viE '\\.(jsonc?|ya?ml)$' | sh -c 'xargs -I {}      -- \"$@\"'",
     "forall-files-no-yaml": "     deno task list-files | grep -viE '\\.ya?ml$'          | sh -c 'xargs -d \"\\n\" -- \"$@\"'"
   },
-  "lock": false
+  "lock": false,
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.7"
+  }
 }
