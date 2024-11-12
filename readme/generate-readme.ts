@@ -15,7 +15,7 @@ import { dirname, relative, resolve } from "@std/path";
  *   with the contents of the file, relative to the currently parsed file. The
  *   whole line will be replaced.
  * - Any shebang line at the start of any input file, will be removed.
- * - For any occurrence of /\sfrom\s+"(\..*)"/ the path will be extracted and resolved from the currently parsed file, and then resolved to a relative path from the root of the git repo, then the whole `from` clause will be replaced with `from "@${username}/${projectName}/${relativePathFromGitRoot}"`.
+ * - For any occurrence of /\sfrom\s+"(\..*)"/ the path will be extracted and resolved from the currently parsed file, and then resolved to a relative path from the root of the git repo, then the whole `from` clause will be replaced with `from "@${user}/${projectName}/${relativePathFromGitRoot}"`.
  * - The resulting text will be written to stdout.
  */
 async function main() {

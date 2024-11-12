@@ -2,8 +2,7 @@
   "name": "@hugojosefson/dropbear-auto-unlock",
   "version": "0.0.0",
   "exports": {
-    ".": "./mod.ts",
-    "./example-usage": "./readme/example-usage.ts"
+    ".": "./mod.ts"
   },
   "tasks": {
     "all": "                      deno fmt && deno lint && deno task check        && deno task readme && deno task test          && deno task coverage         ",
@@ -11,6 +10,7 @@
     "check": "                    deno task foreach-file-no-json-yaml -- deno check          '{}'",
     "check-reload": "             deno task foreach-file-no-json-yaml -- deno check --reload '{}'",
     "test": "                     deno test --coverage --allow-run --allow-env=VERBOSE",
+    "test-watch": "               deno test --watch    --allow-run --allow-env=VERBOSE",
     "coverage": "                 deno coverage",
     "readme": "                   touch README.md && chmod +w README.md && ./readme/generate-readme.ts readme/README.md > README.md && deno fmt README.md; chmod -w README.md",
     "release": "                  deno task all && test -z \"$(git status --porcelain)\" && GITHUB_TOKEN=$(gh auth token) deno run --allow-env=GITHUB_TOKEN --allow-net=api.github.com --allow-run=bash https://deno.land/x/shipit@0.6.1/shipit.ts",
@@ -22,7 +22,11 @@
   },
   "lock": false,
   "imports": {
+    "@hugojosefson/fns": "jsr:@hugojosefson/fns@^2.1.0",
+    "@hugojosefson/run-simple": "jsr:@hugojosefson/run-simple@^2.3.8",
     "@std/assert": "jsr:@std/assert@^1.0.7",
-    "@std/path": "jsr:@std/path@^1.0.8"
+    "@std/cli": "jsr:@std/cli@^1.0.6",
+    "@std/path": "jsr:@std/path@^1.0.8",
+    "@std/streams": "jsr:@std/streams@^1.0.8"
   }
 }

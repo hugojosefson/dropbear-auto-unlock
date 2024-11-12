@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# add as dependency to your project
-deno add jsr:@hugojosefson/dropbear-auto-unlock
-
-# ...or...
-
 # create and enter a directory for the script
 mkdir -p "dropbear-auto-unlock"
 cd       "dropbear-auto-unlock"
