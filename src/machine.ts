@@ -1,41 +1,49 @@
 import { setup } from "xstate";
 
+export type Context = {
+  passphrase: string;
+  sshCommand: Deno.Command;
+  sshProcess?: Deno.ChildProcess;
+  writer: WritableStreamDefaultWriter<string>;
+};
+
 export const machine = setup({
   types: {
-    context: {} as {},
-    events: {} as
-      | { type: "start" }
-      | { type: "connectionSuccess" }
-      | { type: "connectionFailure" }
-      | { type: "zfsUnlockPromptDetected" }
-      | { type: "commandPromptDetected" }
-      | { type: "passphraseEntered" }
-      | { type: "zfsLocked" }
-      | { type: "zfsUnlocked" }
-      | { type: "zfsUnlockCalled" }
-      | { type: "serverRebootDetected" },
+    context: {} as Context,
+    events: {} as {
+      type:
+        | "start"
+        | "exit"
+        | "connectionSuccess"
+        | "connectionFailure"
+        | "zfsUnlockPromptDetected"
+        | "commandPromptDetected"
+        | "passphraseEntered"
+        | "zfsLocked"
+        | "zfsUnlocked"
+        | "zfsUnlockCalled"
+        | "serverRebootDetected";
+    },
   },
 }).createMachine({
   context: {},
   id: "sshMachine",
-  initial: "idle",
-  states: {
-    idle: {
-      on: {
-        start: {
-          target: "connecting",
-        },
-      },
-      description:
-        "The state machine is idle, waiting to initiate an SSH connection.",
+  initial: "connecting",
+  on: {
+    connectionFailure: {
+      target: "#sshMachine.sleeping",
+      reenter: true,
     },
+    exit: {
+      target: "#sshMachine.exit",
+      reenter: true,
+    },
+  },
+  states: {
     connecting: {
       on: {
         connectionSuccess: {
           target: "readingOutput",
-        },
-        connectionFailure: {
-          target: "sleeping",
         },
       },
       description: "Attempting to establish an SSH connection to the server.",
@@ -67,9 +75,13 @@ export const machine = setup({
           target: "readingOutput",
         },
       },
-      entry: ({ context, event }) => {
+      entry: ({ context }) => {
         // Action to enter the passphrase
         console.log("Entering ZFS decryption passphrase.");
+        context.sshProcess?.stdin?.getWriter().write(
+          new TextEncoder().encode(context.passphrase + "\n"),
+        );
+
       },
       description:
         "Detected a ZFS unlock prompt. Entering the decryption passphrase.",
@@ -83,9 +95,13 @@ export const machine = setup({
           target: "runningSleepInfinity",
         },
       },
-      entry: ({ context, event }) => {
-        // Action to check ZFS status
-        console.log("Checking if ZFS filesystem is unlocked.");
+      entry: ({ context }) => {
+        // Action to check ZFS encryption lock status
+        context.sshProcess?.stdin?.write(
+          "zfs get -H -o name,value keylocation,keystatus\n",
+        );
+        // Note: You'll need to implement logic elsewhere to read the output
+        // and send either zfsLocked or zfsUnlocked events based on the response
       },
       description:
         "Detected a normal command prompt. Checking if the ZFS filesystem is unlocked.",
@@ -96,25 +112,31 @@ export const machine = setup({
           target: "readingOutput",
         },
       },
-      entry: ({ context, event }) => {
+      entry: ({ context }) => {
         // Action to call zfsunlock
         console.log("Calling zfsunlock.");
+        context.sshProcess?.stdin?.write("zfsunlock\n");
       },
       description:
         "The ZFS filesystem is locked. Attempting to call zfsunlock.",
     },
     runningSleepInfinity: {
-      on: {
-        serverRebootDetected: {
-          target: "connecting",
-        },
-      },
-      entry: ({ context, event }) => {
+      entry: ({ context }) => {
         // Action to run sleep infinity
         console.log("Running sleep infinity to wait for server reboot.");
+        context.sshProcess?.stdin?.write("sleep infinity\n");
       },
       description:
         "The ZFS filesystem is already unlocked. Running sleep infinity.",
+    },
+    exit: {
+      type: "final",
+      entry: async ({ context }) => {
+        await context.sshProcess?.stdin?.write([0x03, 0x03, 0x04]);
+        context.sshProcess?.stderr?.close();
+        context.sshProcess?.stdout?.close();
+        context.sshProcess?.kill();
+      },
     },
   },
 });
