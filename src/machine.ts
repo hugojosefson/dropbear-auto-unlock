@@ -1,10 +1,14 @@
 import { setup } from "xstate";
+import { kill } from "./kill.ts";
+import { wrapProcess } from "./wrap-stdio.ts";
 
 export type Context = {
   passphrase: string;
   sshCommand: Deno.Command;
-  sshProcess?: Deno.ChildProcess;
-  writer: WritableStreamDefaultWriter<string>;
+  sshProcess: Deno.ChildProcess;
+  stdin: WritableStreamDefaultWriter<string>;
+  stdout: ReadableStream<string>;
+  stderr: ReadableStream<string>;
 };
 
 export const machine = setup({
@@ -12,8 +16,9 @@ export const machine = setup({
     context: {} as Context,
     events: {} as {
       type:
-        | "start"
+        | "cleanedUp"
         | "exit"
+        | "connecting"
         | "connectionSuccess"
         | "connectionFailure"
         | "zfsUnlockPromptDetected"
@@ -26,7 +31,7 @@ export const machine = setup({
     },
   },
 }).createMachine({
-  context: {},
+  context: {} as Context,
   id: "sshMachine",
   initial: "connecting",
   on: {
@@ -40,40 +45,55 @@ export const machine = setup({
     },
   },
   states: {
-    connecting: {
+    cleanup: {
+      entry: async ({ context, self }) => {
+        const cleanedUp = Promise.allSettled([
+          context.stdin.close(),
+          context.stdout.cancel(),
+          context.stderr.cancel(),
+          context.sshProcess.status,
+        ]);
+        await kill(context.sshProcess, [["SIGINT", 1000], ["SIGTERM", 1000]]);
+        await cleanedUp;
+        self.send({ type: "cleanedUp" });
+      },
       on: {
-        connectionSuccess: {
-          target: "readingOutput",
-        },
+        cleanedUp: { target: "connecting" },
+      },
+    },
+    connecting: {
+      entry: ({ context, self }) => {
+        context.sshProcess = context.sshCommand.spawn();
+        Object.assign(context, wrapProcess(context.sshProcess));
+        self.send({ type: "connectionSuccess" });
+      },
+      on: {
+        connectionSuccess: { target: "readingOutput" },
       },
       description: "Attempting to establish an SSH connection to the server.",
     },
     readingOutput: {
+      entry: async ({ context }) => {
+        for await (const line of context.stdout) {
+          console.log(line);
+          // TODO: should read all we can read until a timeout, then check the last line for the prompt
+        }
+      },
       on: {
-        zfsUnlockPromptDetected: {
-          target: "enteringPassphrase",
-        },
-        commandPromptDetected: {
-          target: "checkingZfsStatus",
-        },
+        zfsUnlockPromptDetected: { target: "enteringPassphrase" },
+        commandPromptDetected: { target: "checkingZfsStatus" },
       },
       description:
         "Reading from the SSH client process stdout to determine the next steps.",
     },
     sleeping: {
-      after: {
-        "5000": {
-          target: "connecting",
-        },
-      },
+      after: { "5000": { target: "connecting" } },
       description:
         "The SSH connection attempt failed. The program is sleeping before retrying.",
     },
     enteringPassphrase: {
       on: {
-        passphraseEntered: {
-          target: "readingOutput",
-        },
+        passphraseEntered: { target: "readingOutput" },
       },
       entry: ({ context }) => {
         // Action to enter the passphrase
@@ -81,19 +101,14 @@ export const machine = setup({
         context.sshProcess?.stdin?.getWriter().write(
           new TextEncoder().encode(context.passphrase + "\n"),
         );
-
       },
       description:
         "Detected a ZFS unlock prompt. Entering the decryption passphrase.",
     },
     checkingZfsStatus: {
       on: {
-        zfsLocked: {
-          target: "callingZfsUnlock",
-        },
-        zfsUnlocked: {
-          target: "runningSleepInfinity",
-        },
+        zfsLocked: { target: "callingZfsUnlock" },
+        zfsUnlocked: { target: "runningSleepInfinity" },
       },
       entry: ({ context }) => {
         // Action to check ZFS encryption lock status
@@ -108,9 +123,7 @@ export const machine = setup({
     },
     callingZfsUnlock: {
       on: {
-        zfsUnlockCalled: {
-          target: "readingOutput",
-        },
+        zfsUnlockCalled: { target: "readingOutput" },
       },
       entry: ({ context }) => {
         // Action to call zfsunlock
@@ -132,10 +145,17 @@ export const machine = setup({
     exit: {
       type: "final",
       entry: async ({ context }) => {
-        await context.sshProcess?.stdin?.write([0x03, 0x03, 0x04]);
-        context.sshProcess?.stderr?.close();
-        context.sshProcess?.stdout?.close();
-        context.sshProcess?.kill();
+        context.stdin.releaseLock();
+        const rawStdin: WritableStreamDefaultWriter<Uint8Array> = context
+          .sshProcess.stdin.getWriter();
+        await rawStdin.write(new Uint8Array([0x03, 0x03, 0x04]));
+        await rawStdin.close();
+
+        await context.stdout.cancel();
+        await context.stderr.cancel();
+
+        context.sshProcess.kill();
+        await context.sshProcess.status;
       },
     },
   },

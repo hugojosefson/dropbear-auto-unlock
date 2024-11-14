@@ -28,3 +28,17 @@ export function wrapStdout(
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new LineTimeoutStream(silenceTimeoutMs));
 }
+
+export function wrapProcess(
+  prc: Deno.ChildProcess,
+): {
+  stdin: WritableStreamDefaultWriter<string>;
+  stdout: ReadableStream<string>;
+  stderr: ReadableStream<string>;
+} {
+  return {
+    stdin: wrapStdin(prc.stdin).getWriter(),
+    stdout: wrapStdout(prc.stdout),
+    stderr: wrapStdout(prc.stderr),
+  };
+}
