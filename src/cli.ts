@@ -15,25 +15,21 @@ async function main() {
   );
   const passphrase = await readFirstLine(Deno.stdin.readable);
 
-  const actor = createActor(machine, {
-    input: {
-      context: {
-        passphrase,
-        sshCommand: new Deno.Command("ssh", {
-          args: ["-tt", destination.user + "@" + destination.host],
-          stdin: "piped",
-          stdout: "piped",
-          stderr: "piped",
-        }),
-      },
-    },
+  const sshCommand = new Deno.Command("ssh", {
+    args: ["-tt", destination.user + "@" + destination.host, "bash"],
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
   });
+  const actor = createActor(machine);
   Deno.addSignalListener("SIGINT", () => {
     console.log("SIGINT received. Exiting...");
     actor.send({ type: "exit" });
   });
 
   actor.start();
+  actor.send({ type: "setContext", key: "sshCommand", value: sshCommand });
+  actor.send({ type: "setContext", key: "passphrase", value: passphrase });
 }
 
 if (import.meta.main) {
