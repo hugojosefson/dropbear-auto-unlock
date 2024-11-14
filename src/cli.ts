@@ -17,13 +17,15 @@ async function main() {
 
   const actor = createActor(machine, {
     input: {
-      passphrase,
-      sshCommand: new Deno.Command("ssh", {
-        args: ["-tt", destination.user + "@" + destination.host],
-        stdin: "piped",
-        stdout: "piped",
-        stderr: "piped",
-      }),
+      context: {
+        passphrase,
+        sshCommand: new Deno.Command("ssh", {
+          args: ["-tt", destination.user + "@" + destination.host],
+          stdin: "piped",
+          stdout: "piped",
+          stderr: "piped",
+        }),
+      },
     },
   });
   Deno.addSignalListener("SIGINT", () => {
