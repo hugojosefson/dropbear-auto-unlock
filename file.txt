@@ -1,0 +1,5 @@
+
+Unlocking encrypted ZFS filesystems...
+Enter the password or press Ctrl-C to exit.
+
+🔐 Encrypted ZFS password for rpool/ROOT: (press TAB for no echo) 

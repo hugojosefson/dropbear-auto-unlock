@@ -1,5 +1,8 @@
 import { pipeThroughFrom } from "@core/streamutil";
-import { LineTimeoutStream } from "./stream/line-timeout-stream.ts";
+import {
+  getEmptyString,
+  TimeoutConcatStream,
+} from "./stream/timeout-concat-stream.ts";
 import { NewlineSuffixerStream } from "./stream/newline-suffixer-stream.ts";
 
 export function wrapStdin(
@@ -17,16 +20,16 @@ export function wrapStdin(
 
 /**
  * {@linkcode ReadableStream}<string> that uses {@linkcode TextDecoderStream} to decode bytes to strings, then a
- * {@linkcode LineTimeoutStream} to output whole lines including newlines, and if there is silence for a while, emits
+ * {@linkcode TimeoutConcatStream} to output whole lines including newlines, and if there is silence for a while, emits
  * the string it has so far without the newline.
  */
 export function wrapStdout(
   uint8ArrayReadableStream: ReadableStream<Uint8Array>,
-  silenceTimeoutMs?: number,
+  silenceTimeoutMs = 200,
 ): ReadableStream<string> {
   return uint8ArrayReadableStream
     .pipeThrough(new TextDecoderStream())
-    .pipeThrough(new LineTimeoutStream(silenceTimeoutMs));
+    .pipeThrough(new TimeoutConcatStream(getEmptyString, silenceTimeoutMs));
 }
 
 export function wrapProcess(

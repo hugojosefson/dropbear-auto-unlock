@@ -46,7 +46,7 @@ Deno.test("with child process cat, expect newlines", async () => {
 Deno.test("wrapStdout", async () => {
   const result: string[] = [];
   const uint8ArrayReadableStream = new ReadableStream<Uint8Array>({
-    pull(controller) {
+    start(controller) {
       controller.enqueue(new Uint8Array([0x68, 0x65, 0x6c, 0x6c]));
       controller.enqueue(
         new Uint8Array([0x6f, 0x0a, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x0a]),
@@ -60,7 +60,7 @@ Deno.test("wrapStdout", async () => {
   for await (const value of readableStreamOfStrings) {
     result.push(value);
   }
-  assertEquals(result, ["hello\n", "world\n"]);
+  assertEquals(result, ["hello\nworld\n"]);
 });
 
 Deno.test("wrapStdout with empty stream", async () => {
@@ -95,7 +95,7 @@ Deno.test("wrapStdout with two lines, and an unfinished line", async () => {
   for await (const value of readableStreamOfStrings) {
     result.push(value);
   }
-  assertEquals(result, ["hello\n", "world\n", "worle"]);
+  assertEquals(result, ["hello\nworld\nworle"]);
 });
 
 Deno.test("wrapStdout with two lines, and an unfinished line, and not closing the stream but instead timing out after 200ms", async () => {
@@ -124,5 +124,5 @@ Deno.test("wrapStdout with two lines, and an unfinished line, and not closing th
   for await (const value of readableStreamOfStrings) {
     result.push(value);
   }
-  assertEquals(result, ["hello\n", "world\n", "worle", "worlf"]);
+  assertEquals(result, ["hello\nworld\nworle", "worlf"]);
 });

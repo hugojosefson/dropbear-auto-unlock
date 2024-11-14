@@ -1,4 +1,6 @@
 import { setup } from "xstate";
+import { isCommandPrompt } from "./is-command-prompt.ts";
+import { isZfsUnlockPrompt } from "./is-zfs-unlock-prompt.ts";
 import { kill } from "./kill.ts";
 import { wrapProcess } from "./wrap-stdio.ts";
 
@@ -14,21 +16,26 @@ export type Context = {
 export const machine = setup({
   types: {
     context: {} as Context,
-    events: {} as {
-      type:
-        | "cleanedUp"
-        | "exit"
-        | "connecting"
-        | "connectionSuccess"
-        | "connectionFailure"
-        | "zfsUnlockPromptDetected"
-        | "commandPromptDetected"
-        | "passphraseEntered"
-        | "zfsLocked"
-        | "zfsUnlocked"
-        | "zfsUnlockCalled"
-        | "serverRebootDetected";
-    },
+    events: {} as
+      | {
+        type:
+          | "cleanedUp"
+          | "exit"
+          | "connecting"
+          | "connectionSuccess"
+          | "connectionFailure"
+          | "zfsUnlockPromptDetected"
+          | "commandPromptDetected"
+          | "passphraseEntered"
+          | "zfsLocked"
+          | "zfsUnlocked"
+          | "zfsUnlockCalled"
+          | "serverRebootDetected";
+      }
+      | {
+        type: "error";
+        data: string;
+      },
   },
 }).createMachine({
   context: {} as Context,
@@ -73,10 +80,20 @@ export const machine = setup({
       description: "Attempting to establish an SSH connection to the server.",
     },
     readingOutput: {
-      entry: async ({ context }) => {
-        for await (const line of context.stdout) {
-          console.log(line);
-          // TODO: should read all we can read until a timeout, then check the last line for the prompt
+      after: {
+        5000: { target: "cleanup" },
+      },
+      entry: async ({ context, self }) => {
+        for await (const burst of context.stdout) {
+          console.log(burst);
+          if (isZfsUnlockPrompt(burst)) {
+            self.send({ type: "zfsUnlockPromptDetected" });
+            break;
+          }
+          if (isCommandPrompt(burst)) {
+            self.send({ type: "commandPromptDetected" });
+            break;
+          }
         }
       },
       on: {
@@ -95,12 +112,9 @@ export const machine = setup({
       on: {
         passphraseEntered: { target: "readingOutput" },
       },
-      entry: ({ context }) => {
-        // Action to enter the passphrase
-        console.log("Entering ZFS decryption passphrase.");
-        context.sshProcess?.stdin?.getWriter().write(
-          new TextEncoder().encode(context.passphrase + "\n"),
-        );
+      entry: async ({ context, self }) => {
+        await context.stdin.write(context.passphrase + "\n");
+        self.send({ type: "passphraseEntered" });
       },
       description:
         "Detected a ZFS unlock prompt. Entering the decryption passphrase.",
@@ -109,14 +123,54 @@ export const machine = setup({
       on: {
         zfsLocked: { target: "callingZfsUnlock" },
         zfsUnlocked: { target: "runningSleepInfinity" },
+        error: { target: "cleanup" },
       },
-      entry: ({ context }) => {
-        // Action to check ZFS encryption lock status
-        context.sshProcess?.stdin?.write(
-          "zfs get -H -o name,value keylocation,keystatus\n",
+      entry: async ({ context, self }) => {
+        await context.stdin.write(
+          "zfs get -H -o name,property,value keylocation,keystatus\n",
         );
-        // Note: You'll need to implement logic elsewhere to read the output
-        // and send either zfsLocked or zfsUnlocked events based on the response
+        const reader: ReadableStreamDefaultReader<string> = context.stdout
+          .getReader();
+        const { value, done } = await reader.read();
+        if (done) {
+          self.send({
+            type: "error",
+            data: "Got no output from zfs get command.",
+          });
+          return;
+        }
+        const triples = value.split("\n")
+          .filter((line: string) => line.length > 0)
+          .map((line: string) => line.split(/\s+/))
+          .filter((words: string[]) => words.length === 3) as [
+            string,
+            string,
+            string,
+          ][];
+
+        const fss = triples.reduce((acc, [fs, property, value]) => {
+          const fsObject = acc[fs];
+          if (!fsObject) {
+            acc[fs] = {};
+          }
+          acc[fs][property] = value;
+          return acc;
+        }, {} as Record<string, Record<string, string>>);
+
+        const fsValues = Object.values(fss);
+        if (fsValues.length === 0) {
+          self.send({ type: "error", data: "Got no zfs properties." });
+          return;
+        }
+        if (
+          fsValues.some(({ keylocation, keystatus }) =>
+            keylocation === "prompt" && keystatus === "unavailable"
+          )
+        ) {
+          self.send({ type: "zfsLocked" });
+        } else {
+          self.send({ type: "zfsUnlocked" });
+        }
       },
       description:
         "Detected a normal command prompt. Checking if the ZFS filesystem is unlocked.",
@@ -125,22 +179,19 @@ export const machine = setup({
       on: {
         zfsUnlockCalled: { target: "readingOutput" },
       },
-      entry: ({ context }) => {
-        // Action to call zfsunlock
-        console.log("Calling zfsunlock.");
-        context.sshProcess?.stdin?.write("zfsunlock\n");
+      entry: ({ context, self }) => {
+        context.stdin.write("zfsunlock\n");
+        self.send({ type: "zfsUnlockCalled" });
       },
       description:
         "The ZFS filesystem is locked. Attempting to call zfsunlock.",
     },
     runningSleepInfinity: {
       entry: ({ context }) => {
-        // Action to run sleep infinity
-        console.log("Running sleep infinity to wait for server reboot.");
-        context.sshProcess?.stdin?.write("sleep infinity\n");
+        context.stdin.write("sleep infinity\n");
       },
       description:
-        "The ZFS filesystem is already unlocked. Running sleep infinity.",
+        "The ZFS filesystem is already unlocked. Running sleep infinity to wait for server reboot.",
     },
     exit: {
       type: "final",
