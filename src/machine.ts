@@ -2,10 +2,12 @@ import { setup } from "xstate";
 import { isCommandPrompt } from "./is-command-prompt.ts";
 import { isZfsUnlockPrompt } from "./is-zfs-unlock-prompt.ts";
 import { kill } from "./kill.ts";
+import { SshDestination } from "./ssh-destination.ts";
 import { wrapProcess } from "./wrap-stdio.ts";
 
 export type Context = {
   passphrase: string;
+  destination: SshDestination;
   sshCommand: Deno.Command;
   sshProcess: Deno.ChildProcess;
   stdin: WritableStreamDefaultWriter<string>;
@@ -71,23 +73,25 @@ export const machine = setup({
         },
       },
       entry: ({ context, event, self }) => {
-        console.log("setupContext");
+        console.log(`${context?.destination?.host}: setupContext`);
         if (event.type === "setContext") {
-          console.log(`setting context.${event.key}`);
+          console.log(
+            `${context?.destination?.host}: setting context.${event.key}`,
+          );
           context[event.key] = event.value;
         }
-        if (context.sshCommand && context.passphrase) {
-          console.log("context complete");
+        if (context.sshCommand && context.passphrase && context.destination) {
+          console.log(`${context?.destination?.host}: context complete`);
           self.send({ type: "contextComplete" });
         } else {
-          console.log("context incomplete");
+          console.log(`${context?.destination?.host}: context incomplete`);
         }
       },
       description: "Set up the context.",
     },
     cleanup: {
       entry: async ({ context, self }) => {
-        console.log("Cleaning up...");
+        console.log(`${context?.destination?.host}: Cleaning up...`);
         const cleanedUp = Promise.allSettled([
           context.stdin.close(),
           context.stdout.cancel(),
@@ -96,7 +100,7 @@ export const machine = setup({
         ]);
         await kill(context.sshProcess, [["SIGINT", 1000], ["SIGTERM", 1000]]);
         await cleanedUp;
-        console.log("Cleaned up.");
+        console.log(`${context?.destination?.host}: Cleaned up.`);
         self.send({ type: "cleanedUp" });
       },
       on: {
@@ -105,10 +109,10 @@ export const machine = setup({
     },
     connecting: {
       entry: ({ context, self }) => {
-        console.log("Connecting...");
+        console.log(`${context?.destination?.host}: Connecting...`);
         context.sshProcess = context.sshCommand.spawn();
         Object.assign(context, wrapProcess(context.sshProcess));
-        console.log("Connected.");
+        console.log(`${context?.destination?.host}: Connected.`);
         self.send({ type: "connectionSuccess" });
       },
       on: {
@@ -121,22 +125,24 @@ export const machine = setup({
         5000: { target: "cleanup" },
       },
       entry: async ({ context, self }) => {
-        console.log("Reading output...");
+        console.log(`${context?.destination?.host}: Reading output...`);
         for await (const burst of context.stdout) {
           console.log({ burst });
           if (isZfsUnlockPrompt(burst)) {
-            console.log("Got zfs unlock prompt.");
+            console.log(
+              `${context?.destination?.host}: Got zfs unlock prompt.`,
+            );
             self.send({ type: "zfsUnlockPromptDetected" });
             break;
           }
           if (isCommandPrompt(burst)) {
-            console.log("Got command prompt.");
+            console.log(`${context?.destination?.host}: Got command prompt.`);
             self.send({ type: "commandPromptDetected" });
             break;
           }
-          console.log("Got other output.");
+          console.log(`${context?.destination?.host}: Got other output.`);
         }
-        console.log("Done reading output.");
+        console.log(`${context?.destination?.host}: Done reading output.`);
       },
       on: {
         zfsUnlockPromptDetected: { target: "enteringPassphrase" },
@@ -155,9 +161,9 @@ export const machine = setup({
         passphraseEntered: { target: "readingOutput" },
       },
       entry: async ({ context, self }) => {
-        console.log("Entering passphrase...");
+        console.log(`${context?.destination?.host}: Entering passphrase...`);
         await context.stdin.write(context.passphrase);
-        console.log("Entered passphrase.");
+        console.log(`${context?.destination?.host}: Entered passphrase.`);
         self.send({ type: "passphraseEntered" });
       },
       description:
@@ -170,34 +176,48 @@ export const machine = setup({
         error: { target: "cleanup" },
       },
       entry: async ({ context, self }) => {
-        console.log("Checking ZFS status...");
+        console.log(`${context?.destination?.host}: Checking ZFS status...`);
         await context.stdin.write(
           "zfs get -H -o name,property,value keylocation,keystatus",
         );
-        console.log("Sent zfs get command.");
+        console.log(`${context?.destination?.host}: Sent zfs get command.`);
         const reader: ReadableStreamDefaultReader<string> = context.stdout
           .getReader();
-        const { value, done } = await reader.read();
-        console.log("Attempted to read output from zfs get command.");
-        if (done) {
-          console.log("Got no output from zfs get command (already done).");
-          self.send({
-            type: "error",
-            data: "Got no output from zfs get command.",
-          });
-          return;
+        let value: string;
+        let triples: string[][];
+        try {
+          const result = await reader.read();
+          const done = result.done;
+          console.log(
+            `${context?.destination?.host}: Attempted to read output from zfs get command.`,
+          );
+          if (done) {
+            console.log(
+              `${context?.destination?.host}: Got no output from zfs get command (already done).`,
+            );
+            self.send({
+              type: "error",
+              data: "Got no output from zfs get command.",
+            });
+            return;
+          }
+          value = result.value;
+          console.log(
+            `${context?.destination?.host}: Got output from zfs get command.`,
+          );
+          console.log(value);
+          triples = value.split("\n")
+            .filter((line: string) => line.length > 0)
+            .map((line: string) => line.split(/\s+/))
+            .filter((words: string[]) => words.length === 3) as [
+              string,
+              string,
+              string,
+            ][];
+          console.dir({ triples });
+        } finally {
+          reader.releaseLock();
         }
-        console.log("Got output from zfs get command.");
-        console.log(value);
-        const triples = value.split("\n")
-          .filter((line: string) => line.length > 0)
-          .map((line: string) => line.split(/\s+/))
-          .filter((words: string[]) => words.length === 3) as [
-            string,
-            string,
-            string,
-          ][];
-        console.dir({ triples });
 
         const fss = triples.reduce((acc, [fs, property, value]) => {
           const fsObject = acc[fs];
@@ -211,7 +231,9 @@ export const machine = setup({
 
         const fsValues = Object.values(fss);
         if (fsValues.length === 0) {
-          console.log("Got no zfs properties.");
+          console.log(
+            `${context?.destination?.host}: Got no zfs properties.`,
+          );
           self.send({ type: "error", data: "Got no zfs properties." });
           return;
         }
@@ -220,13 +242,19 @@ export const machine = setup({
             keylocation === "prompt" && keystatus === "unavailable"
           )
         ) {
-          console.log("ZFS filesystem is locked.");
+          console.log(
+            `${context?.destination?.host}: ZFS filesystem is locked.`,
+          );
           self.send({ type: "zfsLocked" });
         } else {
-          console.log("ZFS filesystem is unlocked.");
+          console.log(
+            `${context?.destination?.host}: ZFS filesystem is unlocked.`,
+          );
           self.send({ type: "zfsUnlocked" });
         }
-        console.log("Done checking ZFS status.");
+        console.log(
+          `${context?.destination?.host}: Done checking ZFS status.`,
+        );
       },
       description:
         "Detected a normal command prompt. Checking if the ZFS filesystem is unlocked.",
@@ -236,9 +264,9 @@ export const machine = setup({
         zfsUnlockCalled: { target: "readingOutput" },
       },
       entry: async ({ context, self }) => {
-        console.log("Calling zfsunlock...");
+        console.log(`${context?.destination?.host}: Calling zfsunlock...`);
         await context.stdin.write("zfsunlock\n");
-        console.log("Called zfsunlock.");
+        console.log(`${context?.destination?.host}: Called zfsunlock.`);
         self.send({ type: "zfsUnlockCalled" });
       },
       description:
@@ -246,9 +274,9 @@ export const machine = setup({
     },
     runningSleepInfinity: {
       entry: async ({ context }) => {
-        console.log("Running sleep infinity...");
+        console.log(`${context?.destination?.host}: Running sleep infinity...`);
         await context.stdin.write("sleep infinity\n");
-        console.log("Ran sleep infinity.");
+        console.log(`${context?.destination?.host}: Ran sleep infinity.`);
       },
       description:
         "The ZFS filesystem is already unlocked. Running sleep infinity to wait for server reboot.",
@@ -256,30 +284,38 @@ export const machine = setup({
     exit: {
       type: "final",
       entry: async ({ context }) => {
-        console.log("Exiting with final state...");
-        console.log("Releasing stdin lock...");
+        console.log(
+          `${context?.destination?.host}: Exiting with final state...`,
+        );
+        console.log(`${context?.destination?.host}: Releasing stdin lock...`);
         context.stdin.releaseLock();
-        console.log("Released stdin lock.");
-        console.log("Pressing Ctrl-C, Ctrl-C, Ctrl-D...");
+        console.log(`${context?.destination?.host}: Released stdin lock.`);
+        console.log(
+          `${context?.destination?.host}: Pressing Ctrl-C, Ctrl-C, Ctrl-D...`,
+        );
         const rawStdin: WritableStreamDefaultWriter<Uint8Array> = context
           .sshProcess.stdin.getWriter();
         await rawStdin.write(new Uint8Array([0x03, 0x03, 0x04]));
-        console.log("Pressed Ctrl-C, Ctrl-C, Ctrl-D.");
-        console.log("Closing stdin...");
+        console.log(
+          `${context?.destination?.host}: Pressed Ctrl-C, Ctrl-C, Ctrl-D.`,
+        );
+        console.log(`${context?.destination?.host}: Closing stdin...`);
         await rawStdin.close();
-        console.log("Closed stdin.");
+        console.log(`${context?.destination?.host}: Closed stdin.`);
 
-        console.log("Cancelling stdout...");
+        console.log(`${context?.destination?.host}: Cancelling stdout...`);
         await context.stdout.cancel();
-        console.log("Cancelled stdout.");
-        console.log("Cancelling stderr...");
+        console.log(`${context?.destination?.host}: Cancelled stdout.`);
+        console.log(`${context?.destination?.host}: Cancelling stderr...`);
         await context.stderr.cancel();
-        console.log("Cancelled stderr.");
+        console.log(`${context?.destination?.host}: Cancelled stderr.`);
 
-        console.log("Killing ssh process...");
+        console.log(`${context?.destination?.host}: Killing ssh process...`);
         context.sshProcess.kill();
-        console.log("Killed ssh process.");
-        console.log("Waiting for ssh process to exit...");
+        console.log(`${context?.destination?.host}: Killed ssh process.`);
+        console.log(
+          `${context?.destination?.host}: Waiting for ssh process to exit...`,
+        );
         const status = await context.sshProcess.status;
         console.log(`Ssh process exited with status code ${status.code}.`);
       },
