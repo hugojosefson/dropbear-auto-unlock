@@ -4,7 +4,7 @@ import { isZfsUnlockPrompt } from "./is-zfs-unlock-prompt.ts";
 import { kill } from "./kill.ts";
 import type { SshDestination } from "./ssh-destination.ts";
 import { wrapProcess } from "./wrap-stdio.ts";
-import { Logger } from "./logger.ts";
+import type { Logger } from "./logger.ts";
 
 export type ContextInput = {
   passphrase: string;
