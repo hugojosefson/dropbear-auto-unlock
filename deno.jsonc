@@ -29,6 +29,7 @@
     "@std/cli": "jsr:@std/cli@^1.0.6",
     "@std/path": "jsr:@std/path@^1.0.8",
     "@std/streams": "jsr:@std/streams@^1.0.8",
+    "strip-ansi": "npm:strip-ansi@^7.1.0",
     "xstate": "npm:xstate@^5.19.0"
   }
 }

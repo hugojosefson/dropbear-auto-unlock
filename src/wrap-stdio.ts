@@ -1,9 +1,11 @@
 import { pipeThroughFrom } from "@core/streamutil";
+import { mapStream } from "./stream/map-stream.ts";
 import {
   getEmptyString,
   TimeoutConcatStream,
 } from "./stream/timeout-concat-stream.ts";
 import { NewlineSuffixerStream } from "./stream/newline-suffixer-stream.ts";
+import stripAnsi from "strip-ansi";
 
 export function wrapStdin(
   uint8ArrayWritableStream: WritableStream<Uint8Array>,
@@ -29,6 +31,7 @@ export function wrapStdout(
 ): ReadableStream<string> {
   return uint8ArrayReadableStream
     .pipeThrough(new TextDecoderStream())
+    .pipeThrough(mapStream(stripAnsi))
     .pipeThrough(new TimeoutConcatStream(getEmptyString, silenceTimeoutMs));
 }
 

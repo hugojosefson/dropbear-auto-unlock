@@ -42,7 +42,9 @@ async function main() {
   }
   const passphrase = await readFirstLine(Deno.stdin.readable);
 
-  for (const destinationAlternativeStrings of destinationAlternativesStrings) {
+  // In cli.ts, replace the actors section with:
+
+  const actors = await Promise.all(destinationAlternativesStrings.map(async (destinationAlternativeStrings) => {
     const destinationAlternatives: SshDestination[] = await Promise.all(
       destinationAlternativeStrings.map((destinationAlternativeString) =>
         parseSshDestination(
@@ -69,20 +71,44 @@ async function main() {
           stderr: "piped",
         }),
     );
-    const actor = createActor(machine);
-    Deno.addSignalListener("SIGINT", () => {
-      console.log(`${destinationAlternatives.map((destination) => destination.host).join()}: SIGINT received. Exiting...`);
-      actor.send({ type: "exit" });
+
+    // Create a new actor with its own isolated context
+    const actor = createActor(machine, {
+      input: {
+        destinationAlternatives,
+        sshCommands,
+        passphrase,
+      },
     });
 
-    actor.start(); // TOOD: is there state in the machine apart from the actor?
-    actor.send({
-      type: "setContext",
-      key: "destinationAlternatives",
-      value: destinationAlternatives,
+    actor.start();
+
+    return { actor, destinationAlternatives };
+  }));
+
+  // Single signal handler for all actors
+  Deno.addSignalListener("SIGINT", () => {
+    console.log("SIGINT received. Exiting all connections...");
+    actors.forEach(({ actor, destinationAlternatives }) => {
+      const hosts = destinationAlternatives.map((d) => d.host).join();
+      console.log(`Stopping connection to ${hosts}`);
+      actor.send({ type: "exit" });
     });
-    actor.send({ type: "setContext", key: "sshCommands", value: sshCommands });
-    actor.send({ type: "setContext", key: "passphrase", value: passphrase });
+  });
+
+  // Wait for all actors to complete or error
+  try {
+    await Promise.all(actors.map(({ actor }) =>
+      new Promise((resolve, reject) => {
+        actor.subscribe((state) => {
+          if (state.status === 'done') resolve(state);
+          if (state.status === 'error') reject(state.error);
+        });
+      })
+    ));
+  } catch (error) {
+    console.error('One or more actors failed:', error);
+    Deno.exit(1);
   }
 }
 
