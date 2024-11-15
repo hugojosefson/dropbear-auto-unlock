@@ -18,17 +18,22 @@
 
 ## Example usage
 
+Basic usage with a single destination:
+
 ```sh
-"@@include(./example-usage.sh)";
+"@@include(./example-usage-simple.sh)";
 ```
 
-## TODO
+You can specify multiple alternative addresses for the same server, for example
+in case the dropbear has a different IP and/or hostname than the unlocked and
+fully booted server:
 
-- [x] Instead of checking first line of ssh server, spawn `ssh` and get a proper
-      line stream.
-- [x] Check if the prompt is an unlock prompt. If so, unlock.
-- [x] ~~Check if we can run `zfsunlock`. If so, unlock.~~
-- [x] If we're in the server booted, `sleep infinity`, then wait for broken
-      connection indicating next boot.
-- [x] Add timeout arguments/options to `ssh` command.
-- [ ] Support secondary destination for same server.
+```sh
+"@@include(./example-usage-alternatives.sh)";
+```
+
+You can also unlock multiple separate servers simultaneously:
+
+```sh
+"@@include(./example-usage-multiple.sh)";
+```

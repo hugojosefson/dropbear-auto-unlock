@@ -24,17 +24,35 @@ curl -fsSL "https://github.com/hugojosefson/dropbear-auto-unlock/tarball/main" \
 
 ## Example usage
 
+Basic usage with a single destination:
+
 ```sh
-pass show zfs_disk_passphrase | dropbear-auto-unlock root@pve-01
+pass show zfs_disk_passphrase | dropbear-auto-unlock --destination.1=root@pve-01
 ```
 
-## TODO
+You can specify multiple alternative addresses for the same server, for example
+in case the dropbear has a different IP and/or hostname than the unlocked and
+fully booted server:
 
-- [x] Instead of checking first line of ssh server, spawn `ssh` and get a proper
-      line stream.
-- [x] Check if the prompt is an unlock prompt. If so, unlock.
-- [x] ~~Check if we can run `zfsunlock`. If so, unlock.~~
-- [x] If we're in the server booted, `sleep infinity`, then wait for broken
-      connection indicating next boot.
-- [x] Add timeout arguments/options to `ssh` command.
-- [ ] Support secondary destination for same server.
+```sh
+pass show zfs_disk_passphrase | dropbear-auto-unlock --destination.1=root@pve-01 --destination.1=root@pve-01-dropbear
+
+# or, more concisely:
+pass show zfs_disk_passphrase | dropbear-auto-unlock --destination.1=root@pve-01{,-dropbear}
+```
+
+You can also unlock multiple separate servers simultaneously:
+
+```sh
+pass show zfs_disk_passphrase | dropbear-auto-unlock \
+  --destination.1=root@pve-01 \
+  --destination.2=root@pve-02
+
+# or, if you have 5 servers, whose dropbear is on the same hostname but with "-dropbear" appended:
+pass show zfs_disk_passphrase | dropbear-auto-unlock \
+  $(for i in {1..5}; do \
+    for d in "" "-dropbear"; do \
+      echo "--destination.${i}=root@pve-0${i}${d}"; \
+    done; \
+  done)
+```
