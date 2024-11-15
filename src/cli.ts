@@ -21,7 +21,7 @@ async function main() {
         "-o",
         "ConnectTimeout=5",
         destination.user + "@" + destination.host,
-        "bash"
+        "bash",
       ],
       stdin: "piped",
       stdout: "piped",

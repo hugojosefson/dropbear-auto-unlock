@@ -26,7 +26,6 @@ export const machine = setup({
     events: {} as
       | {
         type:
-          | "setContext"
           | "contextComplete"
           | "cleanedUp"
           | "exit"
@@ -130,32 +129,38 @@ export const machine = setup({
         let done = false;
         try {
           while (!done) {
-          const result = await reader.read();
-          const burst = result.value;
-          done = result.done;
-          console.log(context.destination.host + ":", {done, burst});
+            const result = await reader.read();
+            const burst = result.value;
+            done = result.done;
+            console.log(context.destination.host + ":", { done, burst });
             if (done || !burst) {
-              console.log(`${context?.destination?.host}: Got no output (already done).`);
+              console.log(
+                `${context?.destination?.host}: Got no output (already done).`,
+              );
               continue;
             }
             if (isZfsUnlockPrompt(burst)) {
               console.log(
                 `${context?.destination?.host}: Got zfs unlock prompt.`,
               );
-              self.send({type: "zfsUnlockPromptDetected"});
+              self.send({ type: "zfsUnlockPromptDetected" });
               break;
             }
             if (isCommandPrompt(burst)) {
               console.log(`${context?.destination?.host}: Got command prompt.`);
-              self.send({type: "commandPromptDetected"});
+              self.send({ type: "commandPromptDetected" });
               break;
             }
             console.log(`${context?.destination?.host}: Got other output.`);
           }
         } finally {
-          console.log(`${context?.destination?.host}: Releasing stdout reader lock.`);
+          console.log(
+            `${context?.destination?.host}: Releasing stdout reader lock.`,
+          );
           reader.releaseLock();
-          console.log(`${context?.destination?.host}: Released stdout reader lock.`);
+          console.log(
+            `${context?.destination?.host}: Released stdout reader lock.`,
+          );
         }
         console.log(`${context?.destination?.host}: Done reading output.`);
       },
@@ -190,11 +195,13 @@ export const machine = setup({
       },
       entry: ({ context, self }) => {
         console.log(`${context?.destination?.host}: Checking ZFS status...`);
-        console.log(`${context?.destination?.host}: Lol jk. Assuming zfs is unlocked.`);
+        console.log(
+          `${context?.destination?.host}: Lol jk. Assuming zfs is unlocked.`,
+        );
         console.log(
           `${context?.destination?.host}: ZFS filesystem is unlocked.`,
         );
-        self.send({type: "zfsUnlocked"});
+        self.send({ type: "zfsUnlocked" });
         console.log(
           `${context?.destination?.host}: Done checking ZFS status.`,
         );
@@ -208,7 +215,7 @@ export const machine = setup({
         await context.stdin.write("sleep infinity\n");
         console.log(`${context?.destination?.host}: Ran sleep infinity.`);
         await context.sshProcess.status;
-        self.send({type: "serverRebootDetected"});
+        self.send({ type: "serverRebootDetected" });
       },
       on: {
         serverRebootDetected: { target: "cleanup" },
