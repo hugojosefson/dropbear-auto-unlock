@@ -1,0 +1,22 @@
+name: tag a release
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create a release
+        run: deno task release

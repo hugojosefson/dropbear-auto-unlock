@@ -1,4 +1,4 @@
-name: deno
+name: deno tests and checks
 
 on:
   - push
@@ -8,14 +8,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@v4
       - run: deno task test
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@v4
       - run: deno fmt --check
       - run: deno lint
       - run: deno task check
