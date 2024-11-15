@@ -7,8 +7,12 @@ import { readFirstLine } from "./read-first-line.ts";
 import { parseSshDestination, type SshDestination } from "./ssh-destination.ts";
 import { Logger } from "./logger.ts";
 
-async function main() {
-  const destinationArg = parseArgs(Deno.args).destination;
+/**
+ * The main function of the program. This runs the CLI.
+ * @param cliArgs The command line arguments to parse.
+ */
+export async function main(cliArgs: string[]): Promise<void> {
+  const destinationArg = parseArgs(cliArgs).destination;
   console.dir(destinationArg);
   if (typeof destinationArg !== "object" || destinationArg === null) {
     console.error(
@@ -29,7 +33,7 @@ async function main() {
     `destination.${k}`
   ) as `destination.${number}`[];
 
-  const args = parseArgs(Deno.args, { collect: destinationArgNames });
+  const args = parseArgs(cliArgs, { collect: destinationArgNames });
   const destinationAlternativesStrings = Object.values(
     args.destination as Record<number, unknown[]>,
   ).map((destinationValues) =>
@@ -121,5 +125,5 @@ async function main() {
 }
 
 if (import.meta.main) {
-  await main();
+  await main(Deno.args);
 }
