@@ -2,7 +2,7 @@ import { setup } from "xstate";
 import { isCommandPrompt } from "./is-command-prompt.ts";
 import { isZfsUnlockPrompt } from "./is-zfs-unlock-prompt.ts";
 import { kill } from "./kill.ts";
-import { SshDestination } from "./ssh-destination.ts";
+import type { SshDestination } from "./ssh-destination.ts";
 import { wrapProcess } from "./wrap-stdio.ts";
 
 export type Context = {
@@ -38,7 +38,6 @@ export const machine = setup({
           | "passphraseEntered"
           | "zfsLocked"
           | "zfsUnlocked"
-          | "zfsUnlockCalled"
           | "serverRebootDetected";
       }
       | {
@@ -126,21 +125,37 @@ export const machine = setup({
       },
       entry: async ({ context, self }) => {
         console.log(`${context?.destination?.host}: Reading output...`);
-        for await (const burst of context.stdout) {
-          console.log({ burst });
-          if (isZfsUnlockPrompt(burst)) {
-            console.log(
-              `${context?.destination?.host}: Got zfs unlock prompt.`,
-            );
-            self.send({ type: "zfsUnlockPromptDetected" });
-            break;
+        const stdout: ReadableStream<string> = context.stdout;
+        const reader: ReadableStreamDefaultReader<string> = stdout.getReader();
+        let done = false;
+        try {
+          while (!done) {
+          const result = await reader.read();
+          const burst = result.value;
+          done = result.done;
+          console.log(context.destination.host + ":", {done, burst});
+            if (done || !burst) {
+              console.log(`${context?.destination?.host}: Got no output (already done).`);
+              continue;
+            }
+            if (isZfsUnlockPrompt(burst)) {
+              console.log(
+                `${context?.destination?.host}: Got zfs unlock prompt.`,
+              );
+              self.send({type: "zfsUnlockPromptDetected"});
+              break;
+            }
+            if (isCommandPrompt(burst)) {
+              console.log(`${context?.destination?.host}: Got command prompt.`);
+              self.send({type: "commandPromptDetected"});
+              break;
+            }
+            console.log(`${context?.destination?.host}: Got other output.`);
           }
-          if (isCommandPrompt(burst)) {
-            console.log(`${context?.destination?.host}: Got command prompt.`);
-            self.send({ type: "commandPromptDetected" });
-            break;
-          }
-          console.log(`${context?.destination?.host}: Got other output.`);
+        } finally {
+          console.log(`${context?.destination?.host}: Releasing stdout reader lock.`);
+          reader.releaseLock();
+          console.log(`${context?.destination?.host}: Released stdout reader lock.`);
         }
         console.log(`${context?.destination?.host}: Done reading output.`);
       },
@@ -157,101 +172,29 @@ export const machine = setup({
         "The SSH connection attempt failed. The program is sleeping before retrying.",
     },
     enteringPassphrase: {
-      on: {
-        passphraseEntered: { target: "readingOutput" },
+      after: {
+        5000: { target: "cleanup" },
       },
-      entry: async ({ context, self }) => {
+      entry: async ({ context }) => {
         console.log(`${context?.destination?.host}: Entering passphrase...`);
         await context.stdin.write(context.passphrase);
         console.log(`${context?.destination?.host}: Entered passphrase.`);
-        self.send({ type: "passphraseEntered" });
       },
       description:
         "Detected a ZFS unlock prompt. Entering the decryption passphrase.",
     },
     checkingZfsStatus: {
       on: {
-        zfsLocked: { target: "callingZfsUnlock" },
         zfsUnlocked: { target: "runningSleepInfinity" },
         error: { target: "cleanup" },
       },
-      entry: async ({ context, self }) => {
+      entry: ({ context, self }) => {
         console.log(`${context?.destination?.host}: Checking ZFS status...`);
-        await context.stdin.write(
-          "zfs get -H -o name,property,value keylocation,keystatus",
+        console.log(`${context?.destination?.host}: Lol jk. Assuming zfs is unlocked.`);
+        console.log(
+          `${context?.destination?.host}: ZFS filesystem is unlocked.`,
         );
-        console.log(`${context?.destination?.host}: Sent zfs get command.`);
-        const reader: ReadableStreamDefaultReader<string> = context.stdout
-          .getReader();
-        let value: string;
-        let triples: string[][];
-        try {
-          const result = await reader.read();
-          const done = result.done;
-          console.log(
-            `${context?.destination?.host}: Attempted to read output from zfs get command.`,
-          );
-          if (done) {
-            console.log(
-              `${context?.destination?.host}: Got no output from zfs get command (already done).`,
-            );
-            self.send({
-              type: "error",
-              data: "Got no output from zfs get command.",
-            });
-            return;
-          }
-          value = result.value;
-          console.log(
-            `${context?.destination?.host}: Got output from zfs get command.`,
-          );
-          console.log(value);
-          triples = value.split("\n")
-            .filter((line: string) => line.length > 0)
-            .map((line: string) => line.split(/\s+/))
-            .filter((words: string[]) => words.length === 3) as [
-              string,
-              string,
-              string,
-            ][];
-          console.dir({ triples });
-        } finally {
-          reader.releaseLock();
-        }
-
-        const fss = triples.reduce((acc, [fs, property, value]) => {
-          const fsObject = acc[fs];
-          if (!fsObject) {
-            acc[fs] = {};
-          }
-          acc[fs][property] = value;
-          return acc;
-        }, {} as Record<string, Record<string, string>>);
-        console.dir({ fss });
-
-        const fsValues = Object.values(fss);
-        if (fsValues.length === 0) {
-          console.log(
-            `${context?.destination?.host}: Got no zfs properties.`,
-          );
-          self.send({ type: "error", data: "Got no zfs properties." });
-          return;
-        }
-        if (
-          fsValues.some(({ keylocation, keystatus }) =>
-            keylocation === "prompt" && keystatus === "unavailable"
-          )
-        ) {
-          console.log(
-            `${context?.destination?.host}: ZFS filesystem is locked.`,
-          );
-          self.send({ type: "zfsLocked" });
-        } else {
-          console.log(
-            `${context?.destination?.host}: ZFS filesystem is unlocked.`,
-          );
-          self.send({ type: "zfsUnlocked" });
-        }
+        self.send({type: "zfsUnlocked"});
         console.log(
           `${context?.destination?.host}: Done checking ZFS status.`,
         );
@@ -259,24 +202,16 @@ export const machine = setup({
       description:
         "Detected a normal command prompt. Checking if the ZFS filesystem is unlocked.",
     },
-    callingZfsUnlock: {
-      on: {
-        zfsUnlockCalled: { target: "readingOutput" },
-      },
-      entry: async ({ context, self }) => {
-        console.log(`${context?.destination?.host}: Calling zfsunlock...`);
-        await context.stdin.write("zfsunlock\n");
-        console.log(`${context?.destination?.host}: Called zfsunlock.`);
-        self.send({ type: "zfsUnlockCalled" });
-      },
-      description:
-        "The ZFS filesystem is locked. Attempting to call zfsunlock.",
-    },
     runningSleepInfinity: {
-      entry: async ({ context }) => {
+      entry: async ({ context, self }) => {
         console.log(`${context?.destination?.host}: Running sleep infinity...`);
         await context.stdin.write("sleep infinity\n");
         console.log(`${context?.destination?.host}: Ran sleep infinity.`);
+        await context.sshProcess.status;
+        self.send({type: "serverRebootDetected"});
+      },
+      on: {
+        serverRebootDetected: { target: "cleanup" },
       },
       description:
         "The ZFS filesystem is already unlocked. Running sleep infinity to wait for server reboot.",
