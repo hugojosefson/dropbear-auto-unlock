@@ -17,3 +17,8 @@ Enter the password or press Ctrl-C to exit.
 🔐 Encrypted ZFS password for rpool/ROOT: (press TAB for no echo)
 `));
 });
+
+Deno.test("isZfsUnlockPrompt on bash → false", () => {
+  assert(!isZfsUnlockPrompt(`root@host:~$ `));
+  assert(!isZfsUnlockPrompt(`root@host:~# `));
+});

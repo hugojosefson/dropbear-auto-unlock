@@ -7,35 +7,81 @@ import { readFirstLine } from "./read-first-line.ts";
 import { parseSshDestination, type SshDestination } from "./ssh-destination.ts";
 
 async function main() {
-  const { _ } = parseArgs(Deno.args);
+  const destinationArg = parseArgs(Deno.args).destination;
+  console.dir(destinationArg);
+  if (typeof destinationArg !== "object" || destinationArg === null) {
+    console.error(
+      "Please provide at least one destination using syntax: --destination.1=host1",
+    );
+    Deno.exit(2);
+  }
+  const destinationArgNumbers = Object.keys(
+    destinationArg,
+  ) as `${number}`[];
+  if (destinationArgNumbers.length === 0) {
+    console.error(
+      "Please provide at least one destination using syntax: --destination.1=host1",
+    );
+    Deno.exit(2);
+  }
+  const destinationArgNames = destinationArgNumbers.map((k) =>
+    `destination.${k}`
+  ) as `destination.${number}`[];
+
+  const args = parseArgs(Deno.args, { collect: destinationArgNames });
+  const destinationAlternativesStrings = Object.values(
+    args.destination as Record<number, unknown[]>,
+  ).map((destinationValues) =>
+    destinationValues.map((destinationValue) =>
+      `${destinationValue}`
+    ) as string[]
+  );
+
+  if (Deno.stdin.isTerminal()) {
+    console.error("Please provide a passphrase on stdin, and press Enter.");
+  }
   const passphrase = await readFirstLine(Deno.stdin.readable);
-  for (const destinationString of _) {
-    const destination: SshDestination = await parseSshDestination(
-      destinationString,
-      { user: "root" },
+
+  for (const destinationAlternativeStrings of destinationAlternativesStrings) {
+    const destinationAlternatives: SshDestination[] = await Promise.all(
+      destinationAlternativeStrings.map((destinationAlternativeString) =>
+        parseSshDestination(
+          destinationAlternativeString,
+          { user: "root" },
+        )
+      ),
     );
 
-    const sshCommand = new Deno.Command("ssh", {
-      args: [
-        "-tt",
-        "-o",
-        "ConnectTimeout=5",
-        destination.user + "@" + destination.host,
-        "bash",
-      ],
-      stdin: "piped",
-      stdout: "piped",
-      stderr: "piped",
-    });
+    console.dir({ destinationAlternatives });
+
+    const sshCommands: Deno.Command[] = destinationAlternatives.map(
+      (destination) =>
+        new Deno.Command("ssh", {
+          args: [
+            "-tt",
+            "-o",
+            "ConnectTimeout=5",
+            destination.user + "@" + destination.host,
+            "bash",
+          ],
+          stdin: "piped",
+          stdout: "piped",
+          stderr: "piped",
+        }),
+    );
     const actor = createActor(machine);
     Deno.addSignalListener("SIGINT", () => {
-      console.log(`${destination.host}: SIGINT received. Exiting...`);
+      console.log(`${destinationAlternatives.map((destination) => destination.host).join()}: SIGINT received. Exiting...`);
       actor.send({ type: "exit" });
     });
 
-    actor.start();
-    actor.send({ type: "setContext", key: "destination", value: destination });
-    actor.send({ type: "setContext", key: "sshCommand", value: sshCommand });
+    actor.start(); // TOOD: is there state in the machine apart from the actor?
+    actor.send({
+      type: "setContext",
+      key: "destinationAlternatives",
+      value: destinationAlternatives,
+    });
+    actor.send({ type: "setContext", key: "sshCommands", value: sshCommands });
     actor.send({ type: "setContext", key: "passphrase", value: passphrase });
   }
 }
