@@ -16,7 +16,13 @@ async function main() {
     );
 
     const sshCommand = new Deno.Command("ssh", {
-      args: ["-tt", destination.user + "@" + destination.host, "bash"],
+      args: [
+        "-tt",
+        "-o",
+        "ConnectTimeout=5",
+        destination.user + "@" + destination.host,
+        "bash"
+      ],
       stdin: "piped",
       stdout: "piped",
       stderr: "piped",
