@@ -31,3 +31,4 @@
 - [x] If we're in the server booted, `sleep infinity`, then wait for broken
       connection indicating next boot.
 - [x] Add timeout arguments/options to `ssh` command.
+- [ ] Support secondary destination for same server.
