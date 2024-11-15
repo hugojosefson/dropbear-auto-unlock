@@ -24,10 +24,10 @@
 
 ## TODO
 
-- [ ] Instead of checking first line of ssh server, spawn `ssh` and get a proper
+- [x] Instead of checking first line of ssh server, spawn `ssh` and get a proper
       line stream.
-- [ ] Check if the prompt is an unlock prompt. If so, unlock.
-- [ ] Check if we can run `zfsunlock`. If so, unlock.
-- [ ] If we're in the server booted, `sleep infinity`, then wait for broken
+- [x] Check if the prompt is an unlock prompt. If so, unlock.
+- [x] ~~Check if we can run `zfsunlock`. If so, unlock.~~
+- [x] If we're in the server booted, `sleep infinity`, then wait for broken
       connection indicating next boot.
-- [ ] Add timeout arguments/options to `ssh` command.
+- [x] Add timeout arguments/options to `ssh` command.
