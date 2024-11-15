@@ -4,11 +4,13 @@ import { isZfsUnlockPrompt } from "./is-zfs-unlock-prompt.ts";
 import { kill } from "./kill.ts";
 import type { SshDestination } from "./ssh-destination.ts";
 import { wrapProcess } from "./wrap-stdio.ts";
+import { Logger } from "./logger.ts";
 
 export type ContextInput = {
   passphrase: string;
   destinationAlternatives: SshDestination[];
   sshCommands: Deno.Command[];
+  logger: Logger;
 };
 
 export type Context = ContextInput & {
@@ -38,28 +40,28 @@ export const machine = setup({
     input: {} as ContextInput, // Define input type
     events: {} as
       | {
-      type:
-        | "contextComplete"
-        | "cleanedUp"
-        | "exit"
-        | "connecting"
-        | "connectionSuccess"
-        | "connectionFailure"
-        | "zfsUnlockPromptDetected"
-        | "commandPromptDetected"
-        | "passphraseEntered"
-        | "zfsLocked"
-        | "zfsUnlocked"
-        | "serverRebootDetected";
-    }
+        type:
+          | "contextComplete"
+          | "cleanedUp"
+          | "exit"
+          | "connecting"
+          | "connectionSuccess"
+          | "connectionFailure"
+          | "zfsUnlockPromptDetected"
+          | "commandPromptDetected"
+          | "passphraseEntered"
+          | "zfsLocked"
+          | "zfsUnlocked"
+          | "serverRebootDetected";
+      }
       | {
-      type: "error";
-      data: string;
-    }
+        type: "error";
+        data: string;
+      }
       | SetContextEvent,
   },
 }).createMachine({
-  context: ({ input }) => ({  // Use input to initialize context
+  context: ({ input }) => ({ // Use input to initialize context
     ...input,
     alternativeIndex: undefined,
     sshProcess: undefined as unknown as Deno.ChildProcess,
@@ -82,7 +84,7 @@ export const machine = setup({
   states: {
     cleanup: {
       entry: async ({ context, self }) => {
-        console.log(
+        context.logger.log(
           `${getHostLabel(context)}: Cleaning up...`,
         );
         const cleanedUp = Promise.allSettled([
@@ -93,7 +95,7 @@ export const machine = setup({
         ]);
         await kill(context.sshProcess, [["SIGINT", 1000], ["SIGTERM", 1000]]);
         await cleanedUp;
-        console.log(
+        context.logger.log(
           `${getHostLabel(context)}: Cleaned up.`,
         );
         self.send({ type: "cleanedUp" });
@@ -104,14 +106,14 @@ export const machine = setup({
     },
     connecting: {
       entry: ({ context, self }) => {
-        console.log(`${getHostLabel(context)}: Connecting...`);
+        context.logger.log(`${getHostLabel(context)}: Connecting...`);
         context.alternativeIndex = typeof context.alternativeIndex === "number"
           ? (context.alternativeIndex + 1) % context.sshCommands.length
           : 0;
         context.sshProcess = context.sshCommands[context.alternativeIndex]
           .spawn();
         Object.assign(context, wrapProcess(context.sshProcess));
-        console.log(`${getHostLabel(context)}: Connected.`);
+        context.logger.log(`${getHostLabel(context)}: Connected.`);
         self.send({ type: "connectionSuccess" });
       },
       on: {
@@ -124,7 +126,7 @@ export const machine = setup({
         5000: { target: "cleanup" },
       },
       entry: async ({ context, self }) => {
-        console.log(`${getHostLabel(context)}: Reading output...`);
+        context.logger.log(`${getHostLabel(context)}: Reading output...`);
         const stdout: ReadableStream<string> = context.stdout;
         const reader: ReadableStreamDefaultReader<string> = stdout.getReader();
         let done = false;
@@ -133,33 +135,39 @@ export const machine = setup({
             const result = await reader.read();
             const burst = result.value;
             done = result.done;
-            console.log(getHostLabel(context) + ":", { done, burst });
+            context.logger.log(getHostLabel(context) + ":", { done, burst });
             if (done || !burst) {
-              console.log(
+              context.logger.log(
                 `${getHostLabel(context)}: Got no output (already done).`,
               );
               continue;
             }
             if (isZfsUnlockPrompt(burst)) {
-              console.log(`${getHostLabel(context)}: Got zfs unlock prompt.`);
+              context.logger.log(
+                `${getHostLabel(context)}: Got zfs unlock prompt.`,
+              );
               self.send({ type: "zfsUnlockPromptDetected" });
               break;
             }
             if (isCommandPrompt(burst)) {
-              console.log(`${getHostLabel(context)}: Got command prompt.`);
+              context.logger.log(
+                `${getHostLabel(context)}: Got command prompt.`,
+              );
               self.send({ type: "commandPromptDetected" });
               break;
             }
-            console.log(`${getHostLabel(context)}: Got other output.`);
+            context.logger.log(`${getHostLabel(context)}: Got other output.`);
           }
         } finally {
-          console.log(
+          context.logger.log(
             `${getHostLabel(context)}: Releasing stdout reader lock.`,
           );
           reader.releaseLock();
-          console.log(`${getHostLabel(context)}: Released stdout reader lock.`);
+          context.logger.log(
+            `${getHostLabel(context)}: Released stdout reader lock.`,
+          );
         }
-        console.log(`${getHostLabel(context)}: Done reading output.`);
+        context.logger.log(`${getHostLabel(context)}: Done reading output.`);
         self.send({
           type: "error",
           data: "Done reading output and no prompts detected.",
@@ -182,9 +190,9 @@ export const machine = setup({
         5000: { target: "cleanup" },
       },
       entry: async ({ context }) => {
-        console.log(`${getHostLabel(context)}: Entering passphrase...`);
+        context.logger.log(`${getHostLabel(context)}: Entering passphrase...`);
         await context.stdin.write(context.passphrase);
-        console.log(`${getHostLabel(context)}: Entered passphrase.`);
+        context.logger.log(`${getHostLabel(context)}: Entered passphrase.`);
       },
       description:
         "Detected a ZFS unlock prompt. Entering the decryption passphrase.",
@@ -195,22 +203,28 @@ export const machine = setup({
         error: { target: "cleanup" },
       },
       entry: ({ context, self }) => {
-        console.log(`${getHostLabel(context)}: Checking ZFS status...`);
-        console.log(
+        context.logger.log(`${getHostLabel(context)}: Checking ZFS status...`);
+        context.logger.log(
           `${getHostLabel(context)}: Lol jk. Assuming zfs is unlocked.`,
         );
-        console.log(`${getHostLabel(context)}: ZFS filesystem is unlocked.`);
+        context.logger.log(
+          `${getHostLabel(context)}: ZFS filesystem is unlocked.`,
+        );
         self.send({ type: "zfsUnlocked" });
-        console.log(`${getHostLabel(context)}: Done checking ZFS status.`);
+        context.logger.log(
+          `${getHostLabel(context)}: Done checking ZFS status.`,
+        );
       },
       description:
         "Detected a normal command prompt. Checking if the ZFS filesystem is unlocked.",
     },
     runningSleepInfinity: {
       entry: async ({ context, self }) => {
-        console.log(`${getHostLabel(context)}: Running sleep infinity...`);
+        context.logger.log(
+          `${getHostLabel(context)}: Running sleep infinity...`,
+        );
         await context.stdin.write("sleep infinity\n");
-        console.log(`${getHostLabel(context)}: Ran sleep infinity.`);
+        context.logger.log(`${getHostLabel(context)}: Ran sleep infinity.`);
         await context.sshProcess.status;
         self.send({ type: "serverRebootDetected" });
       },
@@ -223,38 +237,40 @@ export const machine = setup({
     exit: {
       type: "final",
       entry: async ({ context }) => {
-        console.log(`${getHostLabel(context)}: Exiting with final state...`);
-        console.log(`${getHostLabel(context)}: Releasing stdin lock...`);
+        context.logger.log(
+          `${getHostLabel(context)}: Exiting with final state...`,
+        );
+        context.logger.log(`${getHostLabel(context)}: Releasing stdin lock...`);
         context.stdin.releaseLock();
-        console.log(`${getHostLabel(context)}: Released stdin lock.`);
-        console.log(
+        context.logger.log(`${getHostLabel(context)}: Released stdin lock.`);
+        context.logger.log(
           `${getHostLabel(context)}: Pressing Ctrl-C, Ctrl-C, Ctrl-D...`,
         );
         const rawStdin: WritableStreamDefaultWriter<Uint8Array> = context
           .sshProcess.stdin.getWriter();
         await rawStdin.write(new Uint8Array([0x03, 0x03, 0x04]));
-        console.log(
+        context.logger.log(
           `${getHostLabel(context)}: Pressed Ctrl-C, Ctrl-C, Ctrl-D.`,
         );
-        console.log(`${getHostLabel(context)}: Closing stdin...`);
+        context.logger.log(`${getHostLabel(context)}: Closing stdin...`);
         await rawStdin.close();
-        console.log(`${getHostLabel(context)}: Closed stdin.`);
+        context.logger.log(`${getHostLabel(context)}: Closed stdin.`);
 
-        console.log(`${getHostLabel(context)}: Cancelling stdout...`);
+        context.logger.log(`${getHostLabel(context)}: Cancelling stdout...`);
         await context.stdout.cancel();
-        console.log(`${getHostLabel(context)}: Cancelled stdout.`);
-        console.log(`${getHostLabel(context)}: Cancelling stderr...`);
+        context.logger.log(`${getHostLabel(context)}: Cancelled stdout.`);
+        context.logger.log(`${getHostLabel(context)}: Cancelling stderr...`);
         await context.stderr.cancel();
-        console.log(`${getHostLabel(context)}: Cancelled stderr.`);
+        context.logger.log(`${getHostLabel(context)}: Cancelled stderr.`);
 
-        console.log(`${getHostLabel(context)}: Killing ssh process...`);
+        context.logger.log(`${getHostLabel(context)}: Killing ssh process...`);
         context.sshProcess.kill();
-        console.log(`${getHostLabel(context)}: Killed ssh process.`);
-        console.log(
+        context.logger.log(`${getHostLabel(context)}: Killed ssh process.`);
+        context.logger.log(
           `${getHostLabel(context)}: Waiting for ssh process to exit...`,
         );
         const status = await context.sshProcess.status;
-        console.log(
+        context.logger.log(
           `${
             getHostLabel(context)
           }: Ssh process exited with status code ${status.code}.`,

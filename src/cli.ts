@@ -5,6 +5,7 @@ import { createActor } from "xstate";
 import { machine } from "./machine.ts";
 import { readFirstLine } from "./read-first-line.ts";
 import { parseSshDestination, type SshDestination } from "./ssh-destination.ts";
+import { Logger } from "./logger.ts";
 
 async function main() {
   const destinationArg = parseArgs(Deno.args).destination;
@@ -44,47 +45,52 @@ async function main() {
 
   // In cli.ts, replace the actors section with:
 
-  const actors = await Promise.all(destinationAlternativesStrings.map(async (destinationAlternativeStrings) => {
-    const destinationAlternatives: SshDestination[] = await Promise.all(
-      destinationAlternativeStrings.map((destinationAlternativeString) =>
-        parseSshDestination(
-          destinationAlternativeString,
-          { user: "root" },
-        )
-      ),
-    );
+  const actors = await Promise.all(
+    destinationAlternativesStrings.map(
+      async (destinationAlternativeStrings) => {
+        const destinationAlternatives: SshDestination[] = await Promise.all(
+          destinationAlternativeStrings.map((destinationAlternativeString) =>
+            parseSshDestination(
+              destinationAlternativeString,
+              { user: "root" },
+            )
+          ),
+        );
 
-    console.dir({ destinationAlternatives });
+        console.dir({ destinationAlternatives });
 
-    const sshCommands: Deno.Command[] = destinationAlternatives.map(
-      (destination) =>
-        new Deno.Command("ssh", {
-          args: [
-            "-tt",
-            "-o",
-            "ConnectTimeout=5",
-            destination.user + "@" + destination.host,
-            "bash",
-          ],
-          stdin: "piped",
-          stdout: "piped",
-          stderr: "piped",
-        }),
-    );
+        const sshCommands: Deno.Command[] = destinationAlternatives.map(
+          (destination) =>
+            new Deno.Command("ssh", {
+              args: [
+                "-tt",
+                "-o",
+                "ConnectTimeout=5",
+                destination.user + "@" + destination.host,
+                "bash",
+              ],
+              stdin: "piped",
+              stdout: "piped",
+              stderr: "piped",
+            }),
+        );
 
-    // Create a new actor with its own isolated context
-    const actor = createActor(machine, {
-      input: {
-        destinationAlternatives,
-        sshCommands,
-        passphrase,
+        // Create a new actor with its own isolated context
+        const actor = createActor(machine, {
+          input: {
+            destinationAlternatives,
+            sshCommands,
+            passphrase,
+            logger: new Logger(destinationAlternatives),
+          },
+        });
+
+        actor.start();
+
+        return { actor, destinationAlternatives };
       },
-    });
-
-    actor.start();
-
-    return { actor, destinationAlternatives };
-  }));
+    ),
+  );
 
   // Single signal handler for all actors
   Deno.addSignalListener("SIGINT", () => {
@@ -98,16 +104,18 @@ async function main() {
 
   // Wait for all actors to complete or error
   try {
-    await Promise.all(actors.map(({ actor }) =>
-      new Promise((resolve, reject) => {
-        actor.subscribe((state) => {
-          if (state.status === 'done') resolve(state);
-          if (state.status === 'error') reject(state.error);
-        });
-      })
-    ));
+    await Promise.all(
+      actors.map(({ actor }) =>
+        new Promise((resolve, reject) => {
+          actor.subscribe((state) => {
+            if (state.status === "done") resolve(state);
+            if (state.status === "error") reject(state.error);
+          });
+        })
+      ),
+    );
   } catch (error) {
-    console.error('One or more actors failed:', error);
+    console.error("One or more actors failed:", error);
     Deno.exit(1);
   }
 }
