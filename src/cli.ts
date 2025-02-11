@@ -71,7 +71,7 @@ export async function main(cliArgs: string[]): Promise<void> {
                 "-o",
                 "ConnectTimeout=5",
                 destination.user + "@" + destination.host,
-                "bash",
+                "sh",
               ],
               stdin: "piped",
               stdout: "piped",
