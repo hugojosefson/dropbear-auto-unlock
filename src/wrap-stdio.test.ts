@@ -126,3 +126,13 @@ Deno.test("wrapStdout with two lines, and an unfinished line, and not closing th
   }
   assertEquals(result, ["hello\nworld\nworle", "worlf"]);
 });
+
+Deno.test("wrapStdout removes ANSI codes", async () => {
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("\x1b[31mhello\x1b[0m\n"));
+      controller.close();
+    },
+  });
+  assertEquals(await Array.fromAsync(wrapStdout(source)), ["hello\n"]);
+});

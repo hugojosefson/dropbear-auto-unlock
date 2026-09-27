@@ -1,6 +1,3 @@
-import { run } from "@hugojosefson/run-simple";
-import { s } from "@hugojosefson/fns/string/s";
-
 export type Host = Hostname | IpAddress;
 export type Hostname = string;
 export type IpAddress = IPv4Address | IPv6Address;
@@ -22,22 +19,42 @@ export type SshDestination = {
 };
 
 export const SSH_DESTINATION_REGEXP =
-  /^((?<user>[^@]+)@)?(?<host>[^:]+)(:(?<port>\d+))?$/;
+  /^((?<user>[^\s@:]+)@)?(?<host>[^\s@:]+)(:(?<port>\d+))?$/;
 
+/**
+ * Parse an SSH address. Without a user in the address or `defaultValues.user`,
+ * this function gets the local username through `id -un`.
+ * This command requires `--allow-run=id`.
+ */
 export async function parseSshDestination(
-  sshDestinationString: SshDestinationString | unknown,
+  sshDestinationString: unknown,
   defaultValues: Partial<SshDestination> = {},
 ): Promise<SshDestination> {
   if (typeof sshDestinationString !== "string") {
-    throw new Error(`Invalid ssh destination: ${s(sshDestinationString)}`);
+    throw new TypeError("Use an SSH destination string.");
   }
   const { groups } = SSH_DESTINATION_REGEXP.exec(sshDestinationString) ?? {};
   if (!groups) {
-    throw new Error(`Invalid ssh destination: ${s(sshDestinationString)}`);
+    throw new TypeError("Use a correct SSH destination.");
+  }
+  const port = groups.port ? Number(groups.port) : defaultValues.port ?? 22;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new RangeError("Use an SSH port from 1 to 65535.");
   }
   return {
-    user: groups.user ?? defaultValues.user ?? await run("id -un"),
-    host: groups.host ?? defaultValues.host,
-    port: groups.port ? parseInt(groups.port, 10) : 22,
+    user: groups.user ?? defaultValues.user ?? await defaultUsername(),
+    host: groups.host,
+    port,
   };
+}
+
+async function defaultUsername(): Promise<string> {
+  const { success, stdout } = await new Deno.Command("id", {
+    args: ["-un"],
+  }).output();
+  const username = new TextDecoder().decode(stdout).trim();
+  if (!success || username.length === 0) {
+    throw new Error("Cannot get the default SSH user.");
+  }
+  return username;
 }

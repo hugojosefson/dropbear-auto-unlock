@@ -62,7 +62,7 @@ function concat<T extends Concatable>(
 export class TimeoutConcatStream<T extends Concatable>
   extends TransformStream<T, T> {
   private savedChunks: T[] = [];
-  private silenceTimeoutHandle: number | undefined;
+  private silenceTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
   private clearTimeout() {
     if (this.silenceTimeoutHandle !== undefined) {
