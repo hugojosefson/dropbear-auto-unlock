@@ -109,7 +109,7 @@ include these types. See the
 Add the package as a dependency:
 
 ```sh
-@@include(./install-lib.sh)
+@@include(./install.sh)
 ```
 
 <!-- /hj:readme -->
