@@ -89,6 +89,7 @@
   },
   "fmt": {
     "exclude": [
+      ".idea",
       "coverage",
       "README.md"
     ]
