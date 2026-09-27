@@ -33,7 +33,7 @@
     },
     "readme": {
       "description": "Generate README.md.",
-      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 readme build > \"$temp\" && chmod 444 \"$temp\" && mv \"$temp\" README.md'"
+      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 readme build > \"$temp\" && chmod a-w \"$temp\" && mv -f \"$temp\" README.md'"
     },
     "default": {
       "description": "Fix formatting, then run checks.",

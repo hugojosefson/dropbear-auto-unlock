@@ -119,7 +119,7 @@ checks the full API. JSR documentation and npm type declarations do not always
 include these types. See the
 [JSR limits for slow types](https://jsr.io/docs/about-slow-types).
 
-<!-- hj:readme jsr-package:installation 8934ac03941d62ea909807c61fb88dc52401f08c0197caaa189cd429b1a914ce -->
+<!-- hj:readme jsr-package:installation 7e2ebbd908ff40d82b72fb90ab5f4cb2f73f6b58e3a40700849e0fb670984299 -->
 
 ## Installation
 
