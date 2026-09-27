@@ -1,5 +1,5 @@
 export async function sleep(ms: number) {
-  let timeoutHandle: number | undefined;
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   let resolver: (value: void) => void;
   const promise = new Promise((resolve) => {
     resolver = resolve;

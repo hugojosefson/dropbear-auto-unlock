@@ -3,3 +3,4 @@
 .*.swp
 /coverage/
 /dropbear-auto-unlock*
+# hj:git-ignore
