@@ -2,34 +2,96 @@
   "name": "@hugojosefson/dropbear-auto-unlock",
   "version": "0.0.0",
   "exports": {
-    ".": "./mod.ts"
+    "./cli": "./src/cli/cli.ts",
+    ".": "./src/lib/mod.ts",
+    "./example-usage": "./readme/example-usage.ts"
   },
   "tasks": {
-    "all": "                      deno fmt && deno lint --fix && deno task check        && deno task readme &&                              deno task test          && deno task coverage",
-    "all-reload": "               deno fmt && deno lint --fix && deno task check-reload && deno task readme && (rm -rf coverage || true) && deno task test --reload && deno task coverage",
-    "check": "                    deno task foreach-file-no-json-yaml -- deno check          '{}'",
-    "check-reload": "             deno task foreach-file-no-json-yaml -- deno check --reload '{}'",
-    "test": "                     deno test --coverage --trace-leaks --allow-run --allow-env=VERBOSE",
-    "test-watch": "               deno test --watch    --trace-leaks --allow-run --allow-env=VERBOSE",
-    "coverage": "                 deno coverage",
-    "readme": "                   touch README.md && chmod +w README.md && ./readme/generate-readme.ts readme/README.md > README.md && deno fmt README.md; chmod -w README.md",
-    "release": "                  deno task all && test -z \"$(git status --porcelain)\" && GITHUB_TOKEN=$(gh auth token) deno run --allow-env=GITHUB_TOKEN --allow-net=api.github.com --allow-import=cdn.skypack.dev:443,deno.land:443,esm.sh:443 --allow-run=bash https://deno.land/x/shipit@0.6.1/shipit.ts",
-    "bump-deps": "                deno task forall-files-no-yaml -- deno run --allow-env --allow-read=.,$HOME/.cache/deno,$HOME/.local/share/deno-wasmbuild --allow-write=.,$HOME/.local/share/deno-wasmbuild --allow-run=git --allow-net jsr:@molt/cli@0.19.8 --commit --prefix=\"chore: \"",
-    "on-file-save": "             sh -c 'err=$(NO_COLOR=1 deno fmt \"$1\" 2>&1); if [ $? -eq 0 ] || [ \"$err\" != \"error: No target files found.\" ]; then echo \"$err\"; fi; if [ \"$(echo \"$1\" | cut -c 1-7)\" = \"readme/\" ]; then deno task readme; fi' -s",
-    "list-files": "               git ls-files | deno eval 'import{toText}from\"jsr:@std/streams@1.0.8\";console.log((await toText(Deno.stdin.readable)).split(\"\\n\").filter(f=>f.startsWith(\".github/workflows\")||/\\.((mj|j|t)sx?|jsonc?)$/.test(f)).filter(f=>{try{return !Deno.statSync(f).isDirectory}catch{}}).join(\"\\n\"))'",
-    "foreach-file-no-json-yaml": "deno task list-files | grep -viE '\\.(jsonc?|ya?ml)$' | sh -c 'xargs -I {}      -- \"$@\"'",
-    "forall-files-no-yaml": "     deno task list-files | grep -viE '\\.ya?ml$'          | sh -c 'xargs -d \"\\n\" -- \"$@\"'"
+    "all": {
+      "description": "Run all checks.",
+      "dependencies": [
+        "check"
+      ]
+    },
+    "check": {
+      "description": "Run project checks.",
+      "dependencies": [
+        "format",
+        "lint",
+        "typecheck",
+        "test",
+        "publish-check"
+      ]
+    },
+    "fmt": {
+      "description": "Fix formatting.",
+      "command": "deno fmt"
+    },
+    "format": {
+      "description": "Check formatting.",
+      "command": "deno fmt --check"
+    },
+    "readme": {
+      "description": "Generate README.md.",
+      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 readme build > \"$temp\" && chmod a-w \"$temp\" && mv -f \"$temp\" README.md'"
+    },
+    "default": {
+      "description": "Fix formatting, then run checks.",
+      "command": "deno task --if-present package-metadata && deno task fmt && deno task readme && deno task check"
+    },
+    "package-metadata": {
+      "description": "Build bundled CLI package metadata from Deno configuration.",
+      "command": "sh -c 'temp=$(mktemp src/cli/package-metadata.json.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 package build > \"$temp\" && chmod 644 \"$temp\" && mv \"$temp\" src/cli/package-metadata.json'"
+    },
+    "lint": {
+      "description": "Fix lint locally; check lint in CI.",
+      "command": "sh -c 'if test -n \"${CI:-}\"; then exec deno lint; else exec deno lint --fix; fi'"
+    },
+    "typecheck": {
+      "description": "Type-check the project.",
+      "command": "deno check mod.ts 'src/**/*.ts' 'test/**/*.ts' 'readme/**/*.ts'"
+    },
+    "test": {
+      "description": "Run tests.",
+      "command": "deno test --allow-run=cat,sh"
+    },
+    "publish-check": {
+      "description": "Check JSR publication.",
+      "command": "deno publish --dry-run --allow-dirty --allow-slow-types --check=all"
+    }
   },
-  "lock": false,
+  "publish": {
+    "include": [
+      "src/",
+      "mod.ts",
+      "readme/example-usage.ts",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE"
+    ],
+    "exclude": ["src/**/*.test.ts"]
+  },
+  "lock": true,
+  "minimumDependencyAge": "0",
   "imports": {
     "@core/streamutil": "jsr:@core/streamutil@^1.0.0",
-    "@hugojosefson/fns": "jsr:@hugojosefson/fns@^2.1.0",
-    "@hugojosefson/run-simple": "jsr:@hugojosefson/run-simple@^2.3.8",
-    "@std/assert": "jsr:@std/assert@^1.0.7",
-    "@std/cli": "jsr:@std/cli@^1.0.6",
-    "@std/path": "jsr:@std/path@^1.0.8",
-    "@std/streams": "jsr:@std/streams@^1.0.8",
-    "strip-ansi": "npm:strip-ansi@^7.1.0",
-    "xstate": "npm:xstate@^5.19.0"
+    "@std/fmt": "jsr:@std/fmt@^1.0.10",
+    "@std/cli": "jsr:@std/cli@^1.0.32",
+    "@std/streams": "jsr:@std/streams@^1.2.0",
+    "xstate": "npm:xstate@^5.33.2",
+    "@std/assert": "jsr:@std/assert@^1.0.19"
+  },
+  "lint": {
+    "rules": {
+      // Keep XState inference. This package rule does not support file comments.
+      "exclude": ["no-slow-types"]
+    }
+  },
+  "fmt": {
+    "exclude": [
+      ".idea",
+      "coverage",
+      "README.md"
+    ]
   }
 }

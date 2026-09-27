@@ -1,9 +1,12 @@
-# dropbear-auto-unlock
+# {{package.name}}
 
-CLI tool to automate remote unlocking of encrypted disks on servers during boot.
+Library and CLI for remote disk unlock during server startup.
 
-[![JSR Score](https://jsr.io/badges/@hugojosefson/dropbear-auto-unlock/score)](https://jsr.io/@hugojosefson/dropbear-auto-unlock)
-[![CI](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/deno.yaml/badge.svg)](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/deno.yaml)
+<!-- deno-fmt-ignore-start -->
+<!-- hj:readme jsr-package:badges d656b1327b62219112d1f9aae71fbd85e417c94f6e4f8de91520618d5a2e2ac2 -->
+
+[![JSR Version](https://jsr.io/badges/{{package.name}})](https://jsr.io/{{package.name}}) [![JSR Score](https://jsr.io/badges/{{package.name}}/score)](https://jsr.io/{{package.name}}) <!-- /hj:readme --> <!-- hj:readme github-ci:badge 41714f2a4ea4f2b32acb9e6473b3dcfc679f8a3b05876bae215dd749f953d07f --> [![CI](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-ci.yaml) <!-- /hj:readme -->
+<!-- deno-fmt-ignore-end -->
 
 ## Overview
 
@@ -35,12 +38,11 @@ continue booting automatically.
 
 ### On your secure computer
 
-- `/bin/sh`
-- `unzip`
-- `curl`
-- `ssh` with key-based authentication configured
-- A way of providing the passphrase on the command line, such as a password
-  manager or a file containing the passphrase.
+The computer must have:
+
+- Deno 2.5.2 or a subsequent version.
+- SSH with key authentication.
+- A passphrase source, for example a password manager.
 
 ### On the server
 
@@ -49,18 +51,85 @@ continue booting automatically.
   the secure computer using key-based authentication. When authenticated, the
   server will prompt for the passphrase.
 
+<!-- hj:readme deno-lib:api 0658b56ce02a546cc6dd47883610712ed67cdfbe7ccc1cf8da02baebb1edfccb -->
+
+## API
+
+See the API documentation on
+[jsr.io/{{package.name}}](https://jsr.io/{{package.name}}).
+
+<!-- /hj:readme -->
+
+### Library actors
+
+`createUnlockActor(options)` returns an actor for one server. It starts no SSH
+process until you use `actor.start()`. Each alternative address belongs to the
+same server. Use one actor for each server.
+
+```ts
+@@include(./example-usage.ts)
+```
+
+The caller supplies the passphrase as a string or a function. The function gets
+an `AbortSignal` and can return a promise. The actor calls it when it detects
+the [ZFS password request](../src/is-zfs-unlock-prompt.ts) in the SSH output.
+Connection cleanup cancels the signal. The library does not read stdin or
+install signal handlers.
+
+Use `stopUnlockActor(actor)` to stop a started actor and wait for SSH cleanup.
+The returned promise rejects if SSH cleanup fails. A cleanup error stops the
+actor without another connection attempt. The snapshot keeps the error in
+`context.cleanupError`.
+
+`actor.stop()` starts cleanup but does not wait for it. If the snapshot status
+is `stopped`, `stopUnlockActor(actor)` rejects. Without a cleanup error, the
+actor stays active across server restarts until you stop it.
+
+`UnlockActor`, `UnlockSnapshot`, `UnlockInput`, and `UnlockEvent` derive their
+types from `unlockMachine`. Snapshots have typed states, for example
+`{ session: "readingOutput" }`, `sleeping`, and `exit`. A command prompt
+indicates a shell. The machine does not independently check ZFS status.
+
+The options include `retryDelayMs`, `promptTimeoutMs`, and a status `logger`.
+The default values for `retryDelayMs` and `promptTimeoutMs` are 5000 ms. The
+library is silent by default. The `connect` option accepts an `SshConnector` for
+custom transports and tests. SSH uses the `port` value from each destination.
+The default SSH connector requires `--allow-run=ssh`.
+
+The machine modules use XState type inference. JSR publication uses
+`--allow-slow-types` to keep the inferred state and event types. TypeScript
+checks the full API. JSR documentation and npm type declarations do not always
+include these types. See the
+[JSR limits for slow types](https://jsr.io/docs/about-slow-types).
+
+<!-- hj:readme jsr-package:installation 8934ac03941d62ea909807c61fb88dc52401f08c0197caaa189cd429b1a914ce -->
+
 ## Installation
 
+Add the package as a dependency:
+
 ```sh
-"@@include(./install.sh)";
+@@include(./install.sh)
 ```
+
+<!-- /hj:readme -->
+
+<!-- hj:readme deno-cli:installation 117b541a92b10cfcdf0918af8a461601177fd8700614f84f7454d8ca220b3ddf -->
+
+To install the command:
+
+```sh
+@@include(./install-cli.sh)
+```
+
+<!-- /hj:readme -->
 
 ## Example usage
 
 Basic usage with a single destination:
 
 ```sh
-"@@include(./example-usage-simple.sh)";
+@@include(./example-usage-simple.sh)
 ```
 
 You can specify multiple alternative addresses for the same server, for example
@@ -68,11 +137,15 @@ in case the dropbear has a different IP and/or hostname than the unlocked and
 fully booted server:
 
 ```sh
-"@@include(./example-usage-alternatives.sh)";
+@@include(./example-usage-alternatives.sh)
 ```
 
 You can also unlock multiple separate servers simultaneously:
 
 ```sh
-"@@include(./example-usage-multiple.sh)";
+@@include(./example-usage-multiple.sh)
 ```
+
+## License
+
+[MIT](../LICENSE)
