@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0
+
+### Features
+
+- publish strict API types and clarify ZFS support
+  ([799e7ee](https://github.com/hugojosefson/dropbear-auto-unlock/commit/799e7eee65b0239b50fc1406432b847a7cb3c0dd))
+
+### Other
+
+- give the unlock machine an explicit type
+  ([5ec3531](https://github.com/hugojosefson/dropbear-auto-unlock/commit/5ec3531f25057e75cff879d1fb21cc202483a33b))
+- update local hj generation tasks to 0.17.0
+  ([fb74196](https://github.com/hugojosefson/dropbear-auto-unlock/commit/fb741963c8bea5d514045a66f4c3ec5467c70f66))
+
 ## 1.0.1
 
 ### Other
