@@ -12,16 +12,16 @@ Deno.test("parseDestinations keeps alternatives in each server group", async () 
     [
       [
         { user: "alice", host: "primary", port: 2222 },
-        { user: "root", host: "backup", port: 22 },
+        { user: "root", host: "backup", port: undefined },
       ],
-      [{ user: "root", host: "second", port: 22 }],
+      [{ user: "root", host: "second", port: undefined }],
     ],
   );
 });
 
 Deno.test("parseDestinations keeps numeric host names as strings", async () => {
   assertEquals(await parseDestinations(["--destination.1=123"]), [
-    [{ user: "root", host: "123", port: 22 }],
+    [{ user: "root", host: "123", port: undefined }],
   ]);
 });
 

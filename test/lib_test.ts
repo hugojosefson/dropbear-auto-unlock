@@ -9,7 +9,7 @@ import {
 } from "../src/lib/mod.ts";
 import { fakeConnection } from "./fake-connection.ts";
 
-const first: SshDestination = { user: "root", host: "first.example", port: 22 };
+const first: SshDestination = { user: "root", host: "first.example" };
 const second: SshDestination = {
   user: "root",
   host: "second.example",

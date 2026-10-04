@@ -17,8 +17,9 @@ export function resolveOptions(options: UnlockOptions): MachineContext {
     (destination) => {
       if (
         !destination.host || !destination.user ||
-        !Number.isInteger(destination.port) || destination.port < 1 ||
-        destination.port > 65535
+        (destination.port !== undefined &&
+          (!Number.isInteger(destination.port) || destination.port < 1 ||
+            destination.port > 65535))
       ) {
         throw new TypeError("The SSH destination is not valid.");
       }
