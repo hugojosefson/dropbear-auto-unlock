@@ -6,7 +6,7 @@ import { runActors } from "./run-actors.ts";
 
 const destinationAlternatives = [{ user: "root", host: "test", port: 22 }];
 
-Deno.test("CLI rejects a connection cleanup error", async () => {
+Deno.test("actor group rejects a connection cleanup error", async () => {
   const fake = fakeConnection();
   const failure = new Error("Test cleanup error.");
   const actor = createUnlockActor({
@@ -24,7 +24,7 @@ Deno.test("CLI rejects a connection cleanup error", async () => {
   assertEquals(fake.connection.output.locked, false);
 });
 
-Deno.test("CLI keeps the execution error when cleanup also rejects", async () => {
+Deno.test("actor group keeps the execution error when cleanup also rejects", async () => {
   const fake = fakeConnection();
   const failure = new Error("Test execution error.");
   const cleanupFailure = new Error("Test cleanup error.");
@@ -50,7 +50,7 @@ Deno.test("CLI keeps the execution error when cleanup also rejects", async () =>
   assertEquals(actor.getSnapshot().context.cleanupError, cleanupFailure);
 });
 
-Deno.test("CLI stops other actors after a cleanup error", async () => {
+Deno.test("actor group stops other actors after a cleanup error", async () => {
   const failed = fakeConnection();
   const active = fakeConnection();
   const failure = new Error("Test cleanup error.");

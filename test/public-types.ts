@@ -1,5 +1,6 @@
 import {
   createUnlockActor,
+  startUnlockWatchers,
   type UnlockActor,
   type UnlockEvent,
   type UnlockInput,
@@ -26,4 +27,7 @@ export function checkPublicTypes(
   // @ts-expect-error A passphrase must be a string or provider.
   const invalid: UnlockInput = { destinationAlternatives: [], passphrase: 42 };
   void invalid;
+  startUnlockWatchers({ destinationGroups: [["server"]], passphrase: "dummy" });
+  // @ts-expect-error A server group must contain addresses, not a single string.
+  startUnlockWatchers({ destinationGroups: ["server"], passphrase: "dummy" });
 }

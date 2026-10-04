@@ -1,18 +1,31 @@
-import { createUnlockActor } from "../lib/mod.ts";
-import { Logger } from "../logger.ts";
-import type { SshDestination } from "../ssh-destination.ts";
-import { runActors } from "./run-actors.ts";
+import {
+  type SshDestination,
+  startUnlockWatchers,
+} from "@hugojosefson/dropbear-auto-unlock";
 
 export async function runUnlock(
   destinations: readonly (readonly SshDestination[])[],
   passphrase: string,
 ): Promise<void> {
-  const actors = destinations.map((destinationAlternatives) =>
-    createUnlockActor({
-      destinationAlternatives,
-      passphrase,
-      logger: new Logger([...destinationAlternatives]),
-    })
-  );
-  await runActors(actors);
+  const watchers = await startUnlockWatchers({
+    destinationGroups: destinations,
+    passphrase,
+    logger: { log: (message) => console.log(message) },
+  });
+  const stop = () => {
+    void watchers.stop().catch(() => {});
+  };
+  const listeners: Deno.Signal[] = [];
+  try {
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      Deno.addSignalListener(signal, stop);
+      listeners.push(signal);
+    }
+    await watchers.done;
+  } finally {
+    for (const signal of listeners) {
+      Deno.removeSignalListener(signal, stop);
+    }
+    await watchers.stop();
+  }
 }

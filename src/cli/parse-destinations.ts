@@ -2,7 +2,7 @@ import { parseArgs } from "@std/cli";
 import {
   parseSshDestination,
   type SshDestination,
-} from "../ssh-destination.ts";
+} from "@hugojosefson/dropbear-auto-unlock";
 
 export async function parseDestinations(
   cliArgs: readonly string[],
