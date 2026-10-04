@@ -1,11 +1,6 @@
 {
   "name": "@hugojosefson/dropbear-auto-unlock",
   "version": "1.0.1",
-  "hj": {
-    "jsr": {
-      "allowSlowTypes": true
-    }
-  },
   "exports": {
     "./cli": "./src/cli/cli.ts",
     ".": "./src/lib/mod.ts",
@@ -67,7 +62,7 @@
     },
     "publish-check": {
       "description": "Check JSR publication.",
-      "command": "deno publish --dry-run --allow-dirty --allow-slow-types --check=all"
+      "command": "deno publish --dry-run --allow-dirty --check=all"
     }
   },
   "publish": {
@@ -90,12 +85,6 @@
     "@std/streams": "jsr:@std/streams@^1.2.0",
     "xstate": "npm:xstate@^5.33.2",
     "@std/assert": "jsr:@std/assert@^1.0.19"
-  },
-  "lint": {
-    "rules": {
-      // Keep XState inference. This package rule does not support file comments.
-      "exclude": ["no-slow-types"]
-    }
   },
   "fmt": {
     "exclude": [

@@ -4,7 +4,10 @@ import {
   type UnlockActor,
   type UnlockEvent,
   type UnlockInput,
+  type UnlockMachine,
+  unlockMachine,
   type UnlockSnapshot,
+  type UnlockStateValue,
 } from "../src/lib/mod.ts";
 
 export function checkPublicTypes(
@@ -13,6 +16,21 @@ export function checkPublicTypes(
   input: UnlockInput,
 ): void {
   const event: UnlockEvent = { type: "exit" };
+  const state: UnlockStateValue = snapshot.value;
+  const machine: UnlockMachine = unlockMachine.provide({
+    actions: {
+      nextDestination: ({ context }) => {
+        const index: number = context.alternativeIndex;
+        void index;
+      },
+    },
+    guards: {
+      cleanupFailed: ({ context }) => context.cleanupError !== undefined,
+    },
+    delays: { retryDelay: 100 },
+  });
+  void state;
+  void machine;
   actor.send(event);
   snapshot.matches({ session: "readingOutput" });
   createUnlockActor(input);

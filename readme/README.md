@@ -1,6 +1,6 @@
 # {{package.name}}
 
-Library and CLI for remote disk unlock during server startup.
+Library and CLI for remote ZFS unlock during server startup.
 
 <!-- deno-fmt-ignore-start -->
 <!-- hj:readme jsr-package:badges d656b1327b62219112d1f9aae71fbd85e417c94f6e4f8de91520618d5a2e2ac2 -->
@@ -10,16 +10,27 @@ Library and CLI for remote disk unlock during server startup.
 
 ## Overview
 
-When a server with encrypted disks starts up, it often requires a passphrase to
-unlock the disks before completing the boot process. If a minimal SSH server is
-installed on the server that prompts for the passphrase, you can use this tool
-to automatically unlock the disks without manual intervention.
+This tool connects to an SSH server, such as
+[Dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html), during startup. It
+sends a passphrase when it recognizes the supported ZFS password request.
+Watchers remain active across server reboots.
 
-This tool connects to the server running a minimal SSH server such as
-[Dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html), which is typically
-available in the early stages of the boot process. It then provides the
-necessary passphrase to unlock the encrypted disks, allowing the server to
-continue booting automatically.
+### Supported password request
+
+The startup environment must print this ZFS prompt:
+
+```text
+Unlocking encrypted ZFS filesystems...
+Enter the password or press Ctrl-C to exit.
+```
+
+The prompt can include a dataset line, for example:
+
+```text
+Encrypted ZFS password for rpool/ROOT: (press TAB for no echo)
+```
+
+Other password prompts, including LUKS and cryptroot prompts, are not supported.
 
 ### Key features
 
@@ -46,10 +57,10 @@ The computer must have:
 
 ### On the server
 
-- Encrypted disks with a passphrase
+- Encrypted ZFS datasets with a passphrase
 - Dropbear installed and running on the server, accepting SSH connections from
-  the secure computer using key-based authentication. When authenticated, the
-  server will prompt for the passphrase.
+  the secure computer using key-based authentication. After authentication, the
+  server must print the supported ZFS password request.
 
 <!-- hj:readme deno-lib:api 0658b56ce02a546cc6dd47883610712ed67cdfbe7ccc1cf8da02baebb1edfccb -->
 
@@ -126,10 +137,12 @@ actor without another connection attempt. The snapshot keeps the error in
 is `stopped`, `stopUnlockActor(actor)` rejects. Without a cleanup error, the
 actor stays active across server restarts until you stop it.
 
-`UnlockActor`, `UnlockSnapshot`, `UnlockInput`, and `UnlockEvent` derive their
-types from `unlockMachine`. Snapshots have typed states, for example
-`{ session: "readingOutput" }`, `sleeping`, and `exit`. A command prompt
-indicates a shell. The machine does not independently check ZFS status.
+`UnlockMachine` describes the public XState machine type. `UnlockActor`,
+`UnlockSnapshot`, `UnlockInput`, and `UnlockEvent` describe its actors,
+snapshots, inputs, and events. `UnlockStateValue` describes its state values.
+Snapshots have typed states, for example `{ session: "readingOutput" }`,
+`sleeping`, and `exit`. A command prompt indicates a shell. The machine does not
+independently check ZFS status.
 
 The options include `retryDelayMs`, `promptTimeoutMs`, and a status `logger`.
 The default values for `retryDelayMs` and `promptTimeoutMs` are 5000 ms. The
@@ -138,11 +151,9 @@ custom transports and tests. SSH uses an explicit `port` value from each
 destination. Without a port value, SSH uses its configuration and defaults. The
 default SSH connector requires `--allow-run=ssh`.
 
-The machine modules use XState type inference. JSR publication uses
-`--allow-slow-types` to keep the inferred state and event types. TypeScript
-checks the full API. JSR documentation and npm type declarations do not always
-include these types. See the
-[JSR limits for slow types](https://jsr.io/docs/about-slow-types).
+The public machine type is explicit, so JSR can generate API documentation and
+type declarations. Publication uses strict type checks without
+`--allow-slow-types`. Internal machine modules retain XState type inference.
 
 <!-- hj:readme jsr-package:installation 8934ac03941d62ea909807c61fb88dc52401f08c0197caaa189cd429b1a914ce -->
 
