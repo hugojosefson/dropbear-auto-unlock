@@ -1,4 +1,5 @@
 import { resolveOptions } from "./unlock/resolve-options.ts";
+import type { UnlockMachine } from "./unlock/machine-type.ts";
 import { sshSetup } from "./machine/setup.ts";
 import {
   closing,
@@ -9,7 +10,7 @@ import {
   stopping,
 } from "./machine/session-states.ts";
 
-export const machine = sshSetup.createMachine({
+export const machine: UnlockMachine = sshSetup.createMachine({
   id: "sshMachine",
   context: ({ input }) => resolveOptions(input),
   initial: "session",
