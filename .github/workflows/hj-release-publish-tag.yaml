@@ -65,7 +65,7 @@ jobs:
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"${GITHUB_OUTPUT}","${GITHUB_STEP_SUMMARY}"
           --allow-run=deno,git
-          jsr:@hugojosefson/cli@0.16.3
+          jsr:@hugojosefson/cli@0.16.4
           release publish-tag-prepare
   publish-tag-apply:
     needs: publish-tag-prepare
@@ -102,5 +102,5 @@ jobs:
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"${GITHUB_STEP_SUMMARY}"
           --allow-run=deno,gh,git
-          jsr:@hugojosefson/cli@0.16.3
+          jsr:@hugojosefson/cli@0.16.4
           release publish-tag-apply
