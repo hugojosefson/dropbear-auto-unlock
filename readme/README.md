@@ -5,7 +5,7 @@ Library and CLI for remote disk unlock during server startup.
 <!-- deno-fmt-ignore-start -->
 <!-- hj:readme jsr-package:badges d656b1327b62219112d1f9aae71fbd85e417c94f6e4f8de91520618d5a2e2ac2 -->
 
-[![JSR Version](https://jsr.io/badges/{{package.name}})](https://jsr.io/{{package.name}}) [![JSR Score](https://jsr.io/badges/{{package.name}}/score)](https://jsr.io/{{package.name}}) <!-- /hj:readme --> <!-- hj:readme github-ci:badge 41714f2a4ea4f2b32acb9e6473b3dcfc679f8a3b05876bae215dd749f953d07f --> [![CI](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-ci.yaml) <!-- /hj:readme -->
+[![JSR Version](https://jsr.io/badges/{{package.name}})](https://jsr.io/{{package.name}}) [![JSR Score](https://jsr.io/badges/{{package.name}}/score)](https://jsr.io/{{package.name}}) <!-- /hj:readme --> <!-- hj:readme github-ci:badge e360c05f32393f5df21859035b9d607909e6f3436b58582e4757c7e5d1769658 --> [![CI](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-release-publish-tag.yaml/badge.svg?branch=main)](https://github.com/hugojosefson/dropbear-auto-unlock/actions/workflows/hj-release-publish-tag.yaml?query=branch%3Amain) <!-- /hj:readme -->
 <!-- deno-fmt-ignore-end -->
 
 ## Overview
