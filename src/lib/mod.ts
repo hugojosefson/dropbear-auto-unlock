@@ -8,6 +8,10 @@ export { createUnlockActor } from "../unlock/create-actor.ts";
 export { stopUnlockActor } from "../unlock/stop-actor.ts";
 export { machine as unlockMachine } from "../machine.ts";
 export type {
+  UnlockMachine,
+  UnlockStateValue,
+} from "../unlock/machine-type.ts";
+export type {
   PassphraseProvider,
   UnlockLogger,
   UnlockOptions,
