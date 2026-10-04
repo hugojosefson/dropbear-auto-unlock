@@ -1,6 +1,6 @@
 {
   "name": "@hugojosefson/dropbear-auto-unlock",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "hj": {
     "jsr": {
       "allowSlowTypes": true

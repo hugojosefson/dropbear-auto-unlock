@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.1
+
+### Other
+
+#### github-ci
+
+- enable feature
+  ([184e94b](https://github.com/hugojosefson/dropbear-auto-unlock/commit/184e94b89202175b30bd50880458012dc1d879d6))
+
+#### github-release-publish-jsr
+
+- enable feature
+  ([31f076c](https://github.com/hugojosefson/dropbear-auto-unlock/commit/31f076c75925df1873429cd9e3176f9fc04b310f))
+
+#### github-release-publish-tag
+
+- enable feature
+  ([35a3193](https://github.com/hugojosefson/dropbear-auto-unlock/commit/35a3193385f01bdc40b2fea415e2f84424708d3d))
+
 ## 1.0.0
 
 ### BREAKING CHANGE
