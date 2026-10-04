@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@core/streamutil@1": "1.0.0",
     "jsr:@hugojosefson/cli@0.16.1": "0.16.1",
+    "jsr:@hugojosefson/cli@0.17.0": "0.17.0",
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/bytes@1": "1.0.6",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
@@ -18,6 +19,7 @@
     "npm:es-module-lexer@3.0.2": "3.0.2",
     "npm:fork-version@6.3.1": "6.3.1",
     "npm:jsonc-parser@3.3.1": "3.3.1",
+    "npm:xstate@5.33.2": "5.33.2",
     "npm:xstate@^5.33.2": "5.33.2",
     "npm:yaml@2.9.1": "2.9.1"
   },
@@ -30,6 +32,19 @@
     },
     "@hugojosefson/cli@0.16.1": {
       "integrity": "ebacda124566f6fc1896af688dae81656a5ad2bc0f64676d2d5a39657953a4f7",
+      "dependencies": [
+        "jsr:@std/path",
+        "npm:@inquirer/core",
+        "npm:conventional-changelog-writer",
+        "npm:conventional-commits-parser",
+        "npm:es-module-lexer",
+        "npm:fork-version",
+        "npm:jsonc-parser",
+        "npm:yaml"
+      ]
+    },
+    "@hugojosefson/cli@0.17.0": {
+      "integrity": "f5433a0eb3b4226a8c75fcfd3904da224cda568856fbaf1afc542bd794859db6",
       "dependencies": [
         "jsr:@std/path",
         "npm:@inquirer/core",
