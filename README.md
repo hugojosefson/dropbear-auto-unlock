@@ -110,8 +110,9 @@ indicates a shell. The machine does not independently check ZFS status.
 The options include `retryDelayMs`, `promptTimeoutMs`, and a status `logger`.
 The default values for `retryDelayMs` and `promptTimeoutMs` are 5000 ms. The
 library is silent by default. The `connect` option accepts an `SshConnector` for
-custom transports and tests. SSH uses the `port` value from each destination.
-The default SSH connector requires `--allow-run=ssh`.
+custom transports and tests. SSH uses an explicit `port` value from each
+destination. Without a port value, SSH uses its configuration and defaults. The
+default SSH connector requires `--allow-run=ssh`.
 
 The machine modules use XState type inference. JSR publication uses
 `--allow-slow-types` to keep the inferred state and event types. TypeScript

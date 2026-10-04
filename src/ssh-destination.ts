@@ -15,7 +15,8 @@ export type SshDestinationString =
 export type SshDestination = {
   user: Username;
   host: Host;
-  port: Port;
+  /** Omit the port to use SSH configuration and defaults. */
+  port?: Port;
 };
 
 export const SSH_DESTINATION_REGEXP =
@@ -37,8 +38,11 @@ export async function parseSshDestination(
   if (!groups) {
     throw new TypeError("Use a correct SSH destination.");
   }
-  const port = groups.port ? Number(groups.port) : defaultValues.port ?? 22;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  const port = groups.port ? Number(groups.port) : defaultValues.port;
+  if (
+    port !== undefined &&
+    (!Number.isInteger(port) || port < 1 || port > 65535)
+  ) {
     throw new RangeError("Use an SSH port from 1 to 65535.");
   }
   return {

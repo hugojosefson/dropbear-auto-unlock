@@ -11,7 +11,7 @@ Deno.test("parseSshDestination", async () => {
   assertEquals(await parse("user@host"), {
     user: "user",
     host: "host",
-    port: 22,
+    port: undefined,
   });
   assertEquals(await parse("host:22", { user: "default-user" }), {
     user: "default-user",
@@ -21,7 +21,7 @@ Deno.test("parseSshDestination", async () => {
   assertEquals(await parse("host", { user: "default-user" }), {
     user: "default-user",
     host: "host",
-    port: 22,
+    port: undefined,
   });
   await assertRejects(async () => await parse("user@host:22:33"));
   await assertRejects(async () => await parse("host:22:33"));
