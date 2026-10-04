@@ -296,7 +296,7 @@ jobs:
           deno run --no-lock
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
           --allow-run=git
-          jsr:@hugojosefson/cli@0.16.3
+          jsr:@hugojosefson/cli@0.16.4
           release publish-tag-prepare
   report:
     needs: [update, select, dependency-check, dependency-source-validation]
