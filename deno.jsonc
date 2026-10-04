@@ -34,7 +34,7 @@
     },
     "readme": {
       "description": "Generate README.md.",
-      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 readme build > \"$temp\" && chmod a-w \"$temp\" && mv -f \"$temp\" README.md'"
+      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.17.0 readme build > \"$temp\" && chmod a-w \"$temp\" && mv -f \"$temp\" README.md'"
     },
     "default": {
       "description": "Fix formatting, then run checks.",
@@ -42,7 +42,7 @@
     },
     "package-metadata": {
       "description": "Build bundled CLI package metadata from Deno configuration.",
-      "command": "sh -c 'temp=$(mktemp src/cli/package-metadata.json.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.16.1 package build > \"$temp\" && chmod 644 \"$temp\" && mv \"$temp\" src/cli/package-metadata.json'"
+      "command": "sh -c 'temp=$(mktemp src/cli/package-metadata.json.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.17.0 package build > \"$temp\" && chmod 644 \"$temp\" && mv \"$temp\" src/cli/package-metadata.json'"
     },
     "lint": {
       "description": "Fix lint locally; check lint in CI.",
