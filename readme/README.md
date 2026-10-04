@@ -60,15 +60,56 @@ See the API documentation on
 
 <!-- /hj:readme -->
 
-### Library actors
+### Watch groups of servers
 
-`createUnlockActor(options)` returns an actor for one server. It starts no SSH
-process until you use `actor.start()`. Each alternative address belongs to the
-same server. Use one actor for each server.
+`startUnlockWatchers(options)` starts one watcher per destination group. Each
+group contains alternative SSH addresses for the same server. Separate groups
+run concurrently. Addresses can be strings or `SshDestination` objects. String
+addresses default to user `root`. Omitted ports use SSH configuration.
+
+The function validates all groups before starting any SSH process. It returns a
+promise for an `UnlockWatchers` handle:
+
+- `stop()` stops every watcher and waits for SSH cleanup. Repeated calls return
+  the same promise.
+- `done` resolves after shutdown and cleanup, or rejects after a fatal actor or
+  cleanup error. A fatal error stops the other watchers too.
+
+Successful unlocking does not resolve `done`. The watchers stay active across
+server reboots until the application calls `stop()`. Connection failures retry
+the alternative addresses. This API does not claim that every disk is unlocked.
+
+The library does not read stdin, install signal handlers, or print messages by
+default. The CLI uses this same public API and owns its terminal and signal
+handling. An optional `logger` receives status messages with a hostname prefix.
 
 ```ts
 @@include(./example-usage.ts)
 ```
+
+The calling application can await `watchers.done` to observe fatal failures and
+call `await watchers.stop()` during its own shutdown. A passphrase provider
+receives a cancellation signal for each connection. It can retrieve the
+passphrase when needed without placing it in command arguments.
+
+### Compile a consumer
+
+After adding this package to your application, compile its entry point:
+
+```sh
+deno compile --allow-run=ssh --output unlock-service app.ts
+```
+
+The target computer must have `ssh` installed and configured for key
+authentication. SSH reads its own configuration and opens network connections.
+The default connector needs no Deno `--allow-net` permission. Your application's
+passphrase provider can need additional permissions for its own work.
+
+### Individual actors
+
+`createUnlockActor(options)` returns an actor for one server. It starts no SSH
+process until you use `actor.start()`. Each alternative address belongs to the
+same server. Use one actor for each server.
 
 The caller supplies the passphrase as a string or a function. The function gets
 an `AbortSignal` and can return a promise. The actor calls it when it detects

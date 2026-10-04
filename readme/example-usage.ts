@@ -1,17 +1,18 @@
 import {
-  createUnlockActor,
   type PassphraseProvider,
-  type SshDestination,
-  type UnlockActor,
+  startUnlockWatchers,
+  type UnlockWatchers,
 } from "@hugojosefson/dropbear-auto-unlock";
 
-/** Start one server watcher with a passphrase source from the caller. */
-export function watchServer(
-  destinationAlternatives: readonly SshDestination[],
-  passphrase: PassphraseProvider,
-): UnlockActor {
-  const actor = createUnlockActor({ destinationAlternatives, passphrase });
-  actor.subscribe((snapshot) => console.log(snapshot.value));
-  actor.start();
-  return actor;
+/** The application supplies its own passphrase source. */
+export function watchServers(
+  passphrase: string | PassphraseProvider,
+): Promise<UnlockWatchers> {
+  return startUnlockWatchers({
+    destinationGroups: [
+      ["server-a", "server-a-dropbear:2222"],
+      ["root@server-b"],
+    ],
+    passphrase,
+  });
 }

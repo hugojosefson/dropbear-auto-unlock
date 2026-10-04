@@ -1,3 +1,9 @@
+export { startUnlockWatchers } from "../unlock/start-watchers.ts";
+export type {
+  UnlockDestination,
+  UnlockWatchers,
+  UnlockWatchersOptions,
+} from "../unlock/watchers.ts";
 export { createUnlockActor } from "../unlock/create-actor.ts";
 export { stopUnlockActor } from "../unlock/stop-actor.ts";
 export { machine as unlockMachine } from "../machine.ts";

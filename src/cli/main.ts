@@ -1,4 +1,4 @@
-import { readFirstLine } from "../read-first-line.ts";
+import { readFirstLine } from "./read-first-line.ts";
 import { parseDestinations } from "./parse-destinations.ts";
 import { runUnlock } from "./run-unlock.ts";
 

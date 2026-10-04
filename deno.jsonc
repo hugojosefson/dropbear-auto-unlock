@@ -20,6 +20,7 @@
         "lint",
         "typecheck",
         "test",
+        "test-compiled-consumer",
         "publish-check"
       ]
     },
@@ -54,6 +55,10 @@
     "test": {
       "description": "Run tests.",
       "command": "deno test --allow-run=cat,sh"
+    },
+    "test-compiled-consumer": {
+      "description": "Test the public API from a compiled consumer with dummy SSH.",
+      "command": "bash test/compiled-consumer.sh"
     },
     "publish-check": {
       "description": "Check JSR publication.",
