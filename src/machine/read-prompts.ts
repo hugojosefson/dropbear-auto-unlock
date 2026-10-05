@@ -1,5 +1,6 @@
 import { stripAnsiCode } from "@std/fmt/colors";
 import { isCommandPrompt } from "../is-command-prompt.ts";
+import { isHoldPrompt } from "../is-hold-prompt.ts";
 import { isZfsUnlockPrompt } from "../is-zfs-unlock-prompt.ts";
 import type { ConnectionEvent } from "./types.ts";
 
@@ -20,7 +21,7 @@ export async function readPrompts(
     if (isZfsUnlockPrompt(text)) {
       send({ type: "zfsUnlockPromptDetected" });
       buffer = "";
-    } else if (isCommandPrompt(text)) {
+    } else if (isCommandPrompt(text) || isHoldPrompt(text)) {
       send({ type: "commandPromptDetected" });
       buffer = "";
     }

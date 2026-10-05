@@ -1,6 +1,10 @@
 #!/bin/sh
 case "$*" in
   *root@unreachable.invalid*) exit 1 ;;
+  *root@hold.invalid*)
+    printf 'sleeping for you, please hold\n'
+    sleep 30
+    exit 0 ;;
 esac
 printf 'Unlocking encrypted ZFS filesystems...\nEnter the password or press Ctrl-C to exit.\nEncrypted ZFS password for rpool/ROOT: (press TAB for no echo) '
 IFS= read -r passphrase
