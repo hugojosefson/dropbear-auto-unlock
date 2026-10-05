@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0
+
+### Features
+
+- expose watcher snapshots and log machine events
+  ([621720a](https://github.com/hugojosefson/dropbear-auto-unlock/commit/621720aa042069127fd948e33e39feff30224116))
+
+### Other
+
+- webstorm config
+  ([77ae4cb](https://github.com/hugojosefson/dropbear-auto-unlock/commit/77ae4cbca2c94272943aec6cb863da535ef3d3b8))
+- align gh actions w/ hj features
+  ([6bf3936](https://github.com/hugojosefson/dropbear-auto-unlock/commit/6bf3936243425edb3cd9a07070e6d2a135272037))
+
 ## 1.1.0
 
 ### Features
