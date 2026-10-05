@@ -17,6 +17,11 @@ export type SshDestination = {
   host: Host;
   /** Omit the port to use SSH configuration and defaults. */
   port?: Port;
+  /**
+   * Request a pty with `ssh -tt`. Omitted or `true` requests a pty.
+   * `false` opens the session without a pty.
+   */
+  pty?: boolean;
 };
 
 export const SSH_DESTINATION_REGEXP =
