@@ -29,3 +29,32 @@ Deno.test("SSH uses explicit ports, including port 22", async () => {
     ]);
   }
 });
+
+Deno.test("SSH skips the pty request when pty is false", async () => {
+  const destination = {
+    ...(await parseSshDestination("root@host")),
+    pty: false,
+  };
+  assertEquals(sshArguments(destination), [
+    "-o",
+    "ConnectTimeout=5",
+    "--",
+    "root@host",
+    "sh",
+  ]);
+});
+
+Deno.test("SSH keeps the pty request when pty is true", async () => {
+  const destination = {
+    ...(await parseSshDestination("root@host")),
+    pty: true,
+  };
+  assertEquals(sshArguments(destination), [
+    "-tt",
+    "-o",
+    "ConnectTimeout=5",
+    "--",
+    "root@host",
+    "sh",
+  ]);
+});
