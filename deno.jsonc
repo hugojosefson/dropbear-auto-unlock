@@ -1,6 +1,6 @@
 {
   "name": "@hugojosefson/dropbear-auto-unlock",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "exports": {
     "./cli": "./src/cli/cli.ts",
     ".": "./src/lib/mod.ts",

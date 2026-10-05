@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+### Features
+
+- accept a hold prompt for forced-command sessions
+  ([1c80d5c](https://github.com/hugojosefson/dropbear-auto-unlock/commit/1c80d5c6f91163e36c9d0224ac1cf95badaeea3e))
+
 ## 1.2.0
 
 ### Features
