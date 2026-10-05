@@ -129,6 +129,29 @@ Deno.test("watchers cancel an asynchronous passphrase provider on stop", async (
   assertEquals(fake.writes, []);
 });
 
+Deno.test("a hold prompt holds the session without a passphrase", async () => {
+  const fake = fakeConnection();
+  const watchers = await startUnlockWatchers({
+    destinationGroups: [["test"]],
+    passphrase: () => {
+      throw new Error("No passphrase is necessary for a hold prompt.");
+    },
+    connect: () => fake.connection,
+  });
+  try {
+    await fake.emit("sleeping for you, please hold\n");
+    await until(() =>
+      watchers.snapshot().every((snap) =>
+        snap.matches({ session: "runningSleepInfinity" })
+      )
+    );
+    assertEquals(fake.writes, ["sleep infinity"]);
+  } finally {
+    await watchers.stop();
+    await watchers.done;
+  }
+});
+
 Deno.test("snapshot reports the state of every server in group order", async () => {
   const left = fakeConnection();
   const right = fakeConnection();

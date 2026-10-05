@@ -6,7 +6,7 @@ let shells = 0;
 const watchers = await startUnlockWatchers({
   destinationGroups: [["unreachable.invalid", "first.invalid:2222"], [
     "second.invalid",
-  ]],
+  ], ["hold.invalid:2222"]],
   passphrase(signal) {
     requested.push(signal);
     return "dummy";
@@ -16,7 +16,7 @@ const watchers = await startUnlockWatchers({
     log(message) {
       if (message.includes("Waiting for the server to restart.")) {
         shells++;
-        if (shells === 2) {
+        if (shells === 3) {
           ready.resolve();
         }
       }
