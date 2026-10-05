@@ -31,5 +31,13 @@ export const sshSetup = setup({
       cleanupError: ({ event }) =>
         event.type === "connectionClosed" ? event.cleanupError : undefined,
     }),
+    logConnectionError: ({ context, event }) => {
+      if (event.type === "connectionClosed" && event.error !== undefined) {
+        context.logger.log(`Connection closed: ${String(event.error)}.`);
+      }
+    },
+    logRetrying: ({ context }) => {
+      context.logger.log("Retrying.");
+    },
   },
 });

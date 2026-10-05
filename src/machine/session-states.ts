@@ -14,7 +14,10 @@ export const readingOutput = sshSetup.createStateConfig({
 });
 
 export const enteringPassphrase = sshSetup.createStateConfig({
-  entry: sshSetup.sendTo("connection", { type: "enterPassphrase" }),
+  entry: [
+    ({ context }) => context.logger.log("Entering the passphrase."),
+    sshSetup.sendTo("connection", { type: "enterPassphrase" }),
+  ],
   after: { promptTimeout: "closing" },
   on: { commandPromptDetected: "runningSleepInfinity" },
 });

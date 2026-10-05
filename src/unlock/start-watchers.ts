@@ -60,5 +60,8 @@ export async function startUnlockWatchers(
       }
       return done;
     },
+    snapshot() {
+      return actors.map((actor) => actor.getSnapshot());
+    },
   };
 }

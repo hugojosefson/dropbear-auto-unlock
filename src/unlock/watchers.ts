@@ -1,6 +1,7 @@
 import type { SshDestination } from "../ssh-destination.ts";
 import type { PassphraseProvider, UnlockLogger } from "./options.ts";
 import type { SshConnector } from "../ssh/connection.ts";
+import type { UnlockSnapshot } from "./types.ts";
 
 /** An SSH address string or an already parsed destination. */
 export type UnlockDestination = string | SshDestination;
@@ -24,4 +25,6 @@ export type UnlockWatchers = {
   readonly done: Promise<void>;
   /** Stops all watchers and waits for cleanup. Safe to call more than once. */
   stop(): Promise<void>;
+  /** The current snapshot of every server, in destination group order. */
+  snapshot(): readonly UnlockSnapshot[];
 };

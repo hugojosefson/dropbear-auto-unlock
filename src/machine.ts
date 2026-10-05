@@ -37,14 +37,21 @@ export const machine: UnlockMachine = sshSetup.createMachine({
       },
       on: {
         connectionClosed: [
-          { guard: "cleanupFailed", target: "exit", actions: "recordError" },
-          { target: "sleeping", actions: "recordError" },
+          {
+            guard: "cleanupFailed",
+            target: "exit",
+            actions: ["recordError", "logConnectionError"],
+          },
+          {
+            target: "sleeping",
+            actions: ["recordError", "logConnectionError"],
+          },
         ],
         exit: ".stopping",
       },
     },
     sleeping: {
-      entry: "nextDestination",
+      entry: ["nextDestination", "logRetrying"],
       after: { retryDelay: "session" },
       on: { exit: "exit" },
     },

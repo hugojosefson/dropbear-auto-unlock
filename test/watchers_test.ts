@@ -9,6 +9,16 @@ const prompt = "Unlocking encrypted ZFS filesystems...\n" +
   "Enter the password or press Ctrl-C to exit.\n" +
   "Encrypted ZFS password for rpool/ROOT: (press TAB for no echo) ";
 
+async function until(check: () => boolean): Promise<void> {
+  const started = Date.now();
+  while (!check()) {
+    if (Date.now() - started > 5000) {
+      throw new Error("Timed out waiting for the machine to settle.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
 Deno.test("watchers accept groups and a passphrase without CLI input", async () => {
   const left = fakeConnection();
   const right = fakeConnection();
@@ -117,6 +127,70 @@ Deno.test("watchers cancel an asynchronous passphrase provider on stop", async (
   value.resolve("dummy");
   await Promise.resolve();
   assertEquals(fake.writes, []);
+});
+
+Deno.test("snapshot reports the state of every server in group order", async () => {
+  const left = fakeConnection();
+  const right = fakeConnection();
+  const watchers = await startUnlockWatchers({
+    destinationGroups: [["primary"], ["alice@second:2200"]],
+    passphrase: "dummy",
+    connect: (destination) =>
+      destination.host === "primary" ? left.connection : right.connection,
+  });
+  try {
+    const snapshots = () => watchers.snapshot();
+    assertEquals(snapshots().length, 2);
+    assertEquals(
+      snapshots()[1].context.destinationAlternatives[0].host,
+      "second",
+    );
+    await left.emit(prompt);
+    await right.emit(prompt);
+    await Promise.all([left.written, right.written]);
+    assertEquals(
+      snapshots()[0].matches({ session: "enteringPassphrase" }),
+      true,
+    );
+    assertEquals(
+      snapshots()[1].matches({ session: "enteringPassphrase" }),
+      true,
+    );
+    await left.emit("root@server:~# ");
+    await right.emit("root@server:~# ");
+    await until(() =>
+      snapshots().every((snap) =>
+        snap.matches({ session: "runningSleepInfinity" })
+      )
+    );
+  } finally {
+    await watchers.stop();
+    await watchers.done;
+  }
+});
+
+Deno.test("a connection error is logged before the retry", async () => {
+  const lines: string[] = [];
+  const fake = fakeConnection();
+  const closed = Promise.withResolvers<never>();
+  const watchers = await startUnlockWatchers({
+    destinationGroups: [["test"]],
+    passphrase: "dummy",
+    connect: () => ({ ...fake.connection, closed: closed.promise }),
+    logger: { log: (message) => lines.push(message) },
+  });
+  try {
+    closed.reject(new Error("Dummy connection failure"));
+    await until(() =>
+      lines.includes(
+        "[test] Connection closed: Error: Dummy connection failure.",
+      )
+    );
+    await until(() => lines.includes("[test] Retrying."));
+  } finally {
+    await watchers.stop();
+    await watchers.done;
+  }
 });
 
 Deno.test("a fatal logger error waits for connection cleanup", async () => {
