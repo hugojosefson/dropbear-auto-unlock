@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+### Features
+
+- allow a destination to skip the pty request
+  ([f39a7bc](https://github.com/hugojosefson/dropbear-auto-unlock/commit/f39a7bcee780b234b87feef633944dfbd53738fb))
+
 ## 1.3.0
 
 ### Features
